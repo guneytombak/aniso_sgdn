@@ -1,0 +1,10 @@
+name: sgdn
+
+dependencies:
+  - python=3.8
+  - pytorch
+  - torchvision
+  - tensorflow
+  - tensorboard
+  - tensorboardX
+  - ipykernel
