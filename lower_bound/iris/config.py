@@ -7,17 +7,18 @@ class Container():
 
 cfg = Container()
 
-cfg.name = "MNIST Dataset SGD"
+cfg.name = "Iris Dataset SGD"
 
-cfg.batch_size = 20
+cfg.batch_size = 5
 cfg.lr = 0.005
-cfg.maxiter = 500
+cfg.maxiter = 35
 cfg.seed = 42
-cfg.n_epochs = 5
-
-cfg.input_size = 14**2
+cfg.n_epochs = 100
 cfg.hidden_size = 50
-cfg.output_size = 10
+
+cfg.input_size = 4
+cfg.hidden_size = 15
+cfg.output_size = 3
 
 # Scheduler Parameters
 

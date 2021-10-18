@@ -1,6 +1,7 @@
 ### Personal Additions ###
 
 **/data
+*.sw/
 
 ### JupyterNotebooks ###
 # gitignore template for Jupyter Notebooks

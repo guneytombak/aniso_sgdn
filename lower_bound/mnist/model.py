@@ -4,26 +4,29 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import grad
+from config import cfg
 
 def default_sizes(input_size, hidden_size, output_size):
     
     if input_size is None:
-        input_size = 14**2
+        input_size = cfg.input_size
     
     if hidden_size is None:
-        hidden_size = 1024
+        hidden_size = cfg.hidden_size
         
     if output_size is None:
-        output_size = 10
+        output_size = cfg.output_size
         
     return input_size, hidden_size, output_size
 
 class Net(nn.Module):
     def __init__(self, input_size=None, hidden_size=None, output_size=None):
         super(Net, self).__init__()
-        input_size, hidden_size, output_size = default_sizes(input_size, hidden_size, output_size)
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, output_size)
+        ins, his, ous = default_sizes(input_size, 
+                                      hidden_size, 
+                                      output_size)
+        self.fc1 = nn.Linear(ins, his)
+        self.fc2 = nn.Linear(his, ous)
         self.act = nn.GELU()
 
     def forward(self, x):

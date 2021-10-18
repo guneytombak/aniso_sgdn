@@ -8,3 +8,6 @@ dependencies:
   - tensorboard
   - tensorboardX
   - ipykernel
+  - matplotlib
+  - scikit-learn
+  

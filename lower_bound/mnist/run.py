@@ -20,6 +20,9 @@ sch = cfg.sch
 model = Net(hidden_size=cfg.hidden_size).to(device)
 optimizer = optim.SGD(model.parameters(), cfg.lr)
 
+if sch.use:
+    scheduler = StepLR(optimizer, step_size=sch.step_size, gamma=sch.gamma)
+
 # data
 transform=transforms.Compose([
     transforms.Resize((14,14)),
@@ -30,9 +33,6 @@ transform=transforms.Compose([
 dataset = datasets.MNIST('../data', train=False, download=True,
                     transform=transform)
 data_loader = torch.utils.data.DataLoader(dataset, cfg.batch_size)
-
-if sch.use:
-    scheduler = StepLR(optimizer, step_size=sch.step_size, gamma=sch.gamma)
 
 #%% Run the Code
 
