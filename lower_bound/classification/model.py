@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 
 import torch
@@ -43,9 +44,7 @@ def check_maxiter(maxiter, data_loader, epoch):
     possible_maxiter = len(data_loader.dataset) // data_loader.batch_size
     
     if maxiter > possible_maxiter:
-        if epoch == 0:
-            print(f'Maxiter is changed from {maxiter} to {possible_maxiter}')
-        maxiter = possible_maxiter
+        sys.exit(f'Change maxiter from {maxiter} to {possible_maxiter} or lower!')
 
     return maxiter
 
@@ -133,10 +132,10 @@ def eval_expectation(data_loader, model, device, optimizer):
     return delL
         
         
-def train_epoch(model, device, data_loader, 
-          optimizer, epoch, maxiter, writer):
+def train_epoch(model, cfg, data_loader, 
+                optimizer, epoch, writer):
     
-    maxiter = check_maxiter(maxiter, data_loader, epoch)  
+    maxiter = check_maxiter(cfg.maxiter, data_loader, epoch)  
     
     model.train()
     
@@ -144,17 +143,20 @@ def train_epoch(model, device, data_loader,
     losses = list()
     grads = list()
     
+    gdl = list()
+    
+    eval_loader = copy.deepcopy(data_loader)
+    
     for batch_idx, (data, target) in enumerate(data_loader):
         
         if batch_idx > (maxiter-1):
             break
         
-        eval_loader = copy.deepcopy(data_loader)
         delL = eval_expectation(eval_loader, model, 
-                                device, optimizer)
+                                cfg.dev, optimizer)
         delLs.append(delL)
 
-        data, target = data.to(device), target.to(device)
+        data, target = data.to(cfg.dev), target.to(cfg.dev)
         optimizer.zero_grad() # REVIEW
         output = model(data)
         loss = F.nll_loss(output, target)
@@ -173,6 +175,8 @@ def train_epoch(model, device, data_loader,
                                     'g^2'       : g_sq,
                                     'L'         : loss}, iter_no)
         
+        gdl.append([gmDL_sq, g_sq, loss])
+        
     epoch_loss = np.mean(np.array(losses))
         
     if epoch % 10 == 0:
@@ -181,9 +185,10 @@ def train_epoch(model, device, data_loader,
     grads = torch.stack(grads, dim=0)
     delLs = torch.stack(delLs, dim=0)
             
-    data = dict()
-    data['delL'] = np.array(delLs)
-    data['grad'] = np.array(grads)
-    data['loss'] = np.array(losses)
+    output_data = dict()
+    output_data['delL'] = np.array(delLs)
+    output_data['grad'] = np.array(grads)
+    output_data['loss'] = np.array(losses)
+    output_data['GDL']  = np.array(gdl)
     
-    return data, writer, epoch_loss
+    return output_data, writer, epoch_loss

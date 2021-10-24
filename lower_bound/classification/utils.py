@@ -1,13 +1,24 @@
 import random, os
 import numpy as np
 import torch
+import copy
 
 MNIST_SIZE = 1500
 IRIS_SIZE = 150
 
 class Container():
     
-    def to_dict(self, tb_comp=True):
+    def __init__(self):
+        self.name = None
+        
+    def __print__(self):
+        print(self.to_dict())
+        if self.name is None:
+            return "Untitled Container"
+        else:
+            return f"{self.name} Container"
+    
+    def to_dict(self, tb_comp=False):
         class_vars = vars(Container)
         inst_vars = vars(self)
         all_vars = dict(class_vars)
@@ -84,3 +95,30 @@ def default_config(cfg):
         cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
 
     return cfg
+
+def ld2dl(ld):
+    return {k: [dic[k] for dic in ld] for k in ld[0]}
+    
+    
+
+def cfg_definer(cfgs):
+    
+    cfg_list = [copy.deepcopy(cfgs)]
+    
+    attrs = dict()
+
+    for k, v in cfgs.to_dict().items():
+        if isinstance(v, tuple):
+            attrs[k] = v
+            
+    for key, possible_values in attrs.items():
+        cfg_list_new = list()
+        for cfg in cfg_list:
+            for value in possible_values:
+                cfg_new = copy.deepcopy(cfg)
+                setattr(cfg_new, key, value)
+                cfg_list_new.append(cfg_new)
+
+        cfg_list = cfg_list_new
+        
+    return cfg_list
