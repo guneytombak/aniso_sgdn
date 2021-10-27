@@ -9,7 +9,9 @@ cfgs_fin = list()
 def main(cfg):
     
     cfg_list = cfg_definer(cfg)
-    for cfg in cfg_list:
+    n_cfgs = len(cfg_list)
+    for ind, cfg in enumerate(cfg_list):
+        print(f"RUNNING CONFIG NO {ind+1}/{n_cfgs}")
         cfg.data = run(cfg)
         cfg.finish_date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
         with open(f'./results/{cfg.name}/{cfg.finish_date}.pickle', 'wb') as handle:

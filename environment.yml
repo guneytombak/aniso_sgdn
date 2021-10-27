@@ -10,4 +10,5 @@ dependencies:
   - ipykernel
   - matplotlib
   - scikit-learn
-  
+  - pandas
+  - openpyxl

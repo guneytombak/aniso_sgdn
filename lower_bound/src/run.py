@@ -12,7 +12,6 @@ def run(cfg):
     
     # hyperparameters
     cfg = default_config(cfg)
-    sch = cfg.sch
     seed_everything(cfg.seed)
 
     writer = SummaryWriter(f'./results/{cfg.name}/{cfg.date}')
@@ -24,8 +23,8 @@ def run(cfg):
     model = Net(cfg=cfg).to(cfg.dev)
     optimizer = optim.SGD(model.parameters(), cfg.lr)
 
-    if sch.use:
-        scheduler = StepLR(optimizer, step_size=sch.step_size, gamma=sch.gamma)
+    if cfg.sch__use:
+        scheduler = StepLR(optimizer, step_size=cfg.sch__step_size, gamma=cfg.sch__gamma)
 
     # data
     dataset = get_data(cfg.dataset_name)
@@ -38,7 +37,7 @@ def run(cfg):
         data, writer, epoch_loss = train_epoch(model, cfg, data_loader, 
                                                optimizer, epoch, writer)
         data_list.append(data)
-        if sch.use:
+        if cfg.sch__use:
             scheduler.step()
         
     #writer.add_hparams(cfg.to_dict(), {'loss': epoch_loss})

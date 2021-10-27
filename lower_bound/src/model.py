@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import copy
 
+from utils import ActivType, LossType
+
 def default_model(input_size, hidden_size, output_size, 
                   activation, cfg):
     
@@ -21,23 +23,33 @@ def default_model(input_size, hidden_size, output_size,
             output_size = cfg.output_size
             
         if activation is None:
-            activation = cfg.activation
+            activation = cfg.activ_type
         
     return input_size, hidden_size, output_size, activation
 
 def select_activation(activation):
     
-    if activation.lower() == 'gelu':
+    if activation == ActivType.GELU:
         return nn.GELU()
-    elif activation.lower() == 'relu':
+    elif activation ==  ActivType.RELU:
         return nn.ReLU()
-    elif activation.lower() == 'sigmoid':
+    elif activation ==  ActivType.SIGMOID:
         return nn.Sigmoid()
-    elif activation.lower() == 'id':
+    elif activation ==  ActivType.ID:
         return nn.Identity()
     else:
         print(f'No activation provided for \"{activation}\", using no activation.')
         return nn.Identity()
+
+def select_loss(loss_type):
+    
+    if loss_type == LossType.NLL:
+        return F.nll_loss
+    elif loss_type == LossType.MSE:
+        return F.mse_loss
+    else:
+        sys.exit(f'No loss function provided for \"{loss_type}\"')
+    
 
 def check_maxiter(maxiter, data_loader, epoch):
     
@@ -71,7 +83,6 @@ class Net(nn.Module):
             self.fc_hid.append(nn.Linear(his[i], his[i+1]))
         
         self.fc_hid = nn.ModuleList(self.fc_hid)
-        
         self.fc_out = nn.Linear(his[-1], ous)
         
         self.act = select_activation(acv)
@@ -114,14 +125,14 @@ class Net(nn.Module):
         return torch.cat((g, g_out), 0)
 
 
-def eval_expectation(data_loader, model, device, optimizer):
+def eval_expectation(data_loader, model, device, optimizer, loss_func):
     
     grads = []
     for batch_idx, (data, target) in enumerate(data_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad() # REVIEW
         output = model(data)
-        loss = F.nll_loss(output, target).mean()
+        loss = loss_func(output, target).mean()
         loss.backward()
         
         grads.append(model.get_grads())
@@ -135,6 +146,7 @@ def eval_expectation(data_loader, model, device, optimizer):
 def train_epoch(model, cfg, data_loader, 
                 optimizer, epoch, writer):
     
+    loss_func = select_loss(cfg.loss_type)
     maxiter = check_maxiter(cfg.maxiter, data_loader, epoch)  
     
     model.train()
@@ -153,13 +165,13 @@ def train_epoch(model, cfg, data_loader,
             break
         
         delL = eval_expectation(eval_loader, model, 
-                                cfg.dev, optimizer)
+                                cfg.dev, optimizer, loss_func)
         delLs.append(delL)
 
         data, target = data.to(cfg.dev), target.to(cfg.dev)
         optimizer.zero_grad() # REVIEW
         output = model(data)
-        loss = F.nll_loss(output, target)
+        loss = loss_func(output, target)
         losses.append(np.float64(loss))
         loss.backward()
         grad = model.get_grads()
@@ -179,7 +191,7 @@ def train_epoch(model, cfg, data_loader,
         
     epoch_loss = np.mean(np.array(losses))
         
-    if epoch % 10 == 0:
+    if epoch % 2 == 0:
         print(f'Epoch: {epoch} \tLoss: {epoch_loss:.6f}')
             
     grads = torch.stack(grads, dim=0)

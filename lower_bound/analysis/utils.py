@@ -5,6 +5,27 @@ import copy
 
 MNIST_SIZE = 1500
 IRIS_SIZE = 150
+ENERGY_SIZE = 768
+
+from enum import Enum, auto
+
+class ActivType(Enum):
+    ID = auto()
+    SIGMOID = auto()
+    RELU = auto()
+    GELU = auto()
+    
+
+class LossType(Enum):
+    NLL = auto()
+    MSE = auto()
+
+
+class DataName(Enum):
+    IRIS = auto()
+    MNIST = auto()
+    ENERGY = auto()
+
 
 class Container():
     
@@ -78,28 +99,40 @@ def default_config(cfg):
         cfg.sch.gamma = None
         cfg.sch.step_size = None
     
-    if cfg.dataset_name.lower() == 'iris':
+    if cfg.dataset_name == DataName.IRIS:
         cfg.input_size = 4
         cfg.output_size = 3
         cfg.hidden_size = getattr(cfg, 'hidden_size', 15)
+        cfg.loss_type = LossType.NLL
         
         default_maxiter = IRIS_SIZE // cfg.batch_size
         cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
         
-    elif cfg.dataset_name.lower() == 'mnist':
+    elif cfg.dataset_name == DataName.MNIST:
         cfg.input_size = 28**2
         cfg.output_size = 10
         cfg.hidden_size = getattr(cfg, 'hidden_size', 256)
+        cfg.loss_type = LossType.NLL
         
         default_maxiter = MNIST_SIZE // cfg.batch_size
         cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
+        
+            
+    elif cfg.dataset_name == DataName.ENERGY:
+        cfg.input_size = 8
+        cfg.output_size = 2
+        cfg.hidden_size = getattr(cfg, 'hidden_size', 50)
+        cfg.loss_type = LossType.MSE
+        
+        default_maxiter = ENERGY_SIZE // cfg.batch_size
+        cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
 
+    print(f"Maxiter is {cfg.maxiter}/{default_maxiter}")
+    
     return cfg
 
 def ld2dl(ld):
     return {k: [dic[k] for dic in ld] for k in ld[0]}
-    
-    
 
 def cfg_definer(cfgs):
     
