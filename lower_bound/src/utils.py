@@ -9,6 +9,12 @@ ENERGY_SIZE = 768
 
 from enum import Enum, auto
 
+
+class TaskType(Enum):
+    REGRESS = auto()
+    CLASSIFY = auto()
+
+
 class ActivType(Enum):
     ID = auto()
     SIGMOID = auto()
@@ -100,6 +106,9 @@ def default_config(cfg):
         cfg.sch.step_size = None
     
     if cfg.dataset_name == DataName.IRIS:
+
+        cfg.task_type = TaskType.CLASSIFY
+
         cfg.input_size = 4
         cfg.output_size = 3
         cfg.hidden_size = getattr(cfg, 'hidden_size', 15)
@@ -109,6 +118,9 @@ def default_config(cfg):
         cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
         
     elif cfg.dataset_name == DataName.MNIST:
+
+        cfg.task_type = TaskType.CLASSIFY
+
         cfg.input_size = 28**2
         cfg.output_size = 10
         cfg.hidden_size = getattr(cfg, 'hidden_size', 256)
@@ -119,6 +131,9 @@ def default_config(cfg):
         
             
     elif cfg.dataset_name == DataName.ENERGY:
+
+        cfg.task_type = TaskType.REGRESS
+
         cfg.input_size = 8
         cfg.output_size = 2
         cfg.hidden_size = getattr(cfg, 'hidden_size', 50)

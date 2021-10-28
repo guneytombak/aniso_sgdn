@@ -18,6 +18,7 @@ def run(cfg):
     
     if not hasattr(cfg, 'dev'):
         cfg.dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f'Device: {cfg.dev}')
 
     # model
     model = Net(cfg=cfg).to(cfg.dev)

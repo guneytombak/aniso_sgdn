@@ -12,3 +12,6 @@ dependencies:
   - scikit-learn
   - pandas
   - openpyxl
+  - pip
+  - pip:
+    - pickle5

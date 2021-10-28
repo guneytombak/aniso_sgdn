@@ -1,7 +1,11 @@
-#%%
-
 from utils import Container, DataName, ActivType, LossType
 from datetime import datetime
+
+'''
+MNIST_SIZE = 1500
+IRIS_SIZE = 150
+ENERGY_SIZE = 768
+'''
 
 # Main Parameters
 
@@ -32,4 +36,3 @@ if cfg.sch__use:
     cfg.sch__gamma = 0.9
     cfg.sch__step_size = 20
 
-# %%

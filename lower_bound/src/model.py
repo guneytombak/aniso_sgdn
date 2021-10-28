@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import copy
 
-from utils import ActivType, LossType
+from utils import ActivType, LossType, TaskType
 
 def default_model(input_size, hidden_size, output_size, 
                   activation, cfg):
@@ -60,11 +60,30 @@ def check_maxiter(maxiter, data_loader, epoch):
 
     return maxiter
 
+def select_out_func(cfg, task_type):
+
+    if task_type is None:
+        if cfg.task_type is not None:
+            task_type = cfg.task_type
+        else:
+            sys.exit('No task type specified!')
+        
+    if task_type == TaskType.CLASSIFY:
+        return F.log_softmax
+    elif task_type == TaskType.REGRESS:
+
+        id_in = nn.Identity()
+
+        def id(arg1, *argv, **kwargs):
+            return id_in(arg1)
+
+        return id
+
 
 class Net(nn.Module):
     def __init__(self, cfg=None, input_size=None, 
                  hidden_size=None, output_size=None,
-                 activation=None, verbose=True):
+                 activation=None, task_type=None, verbose=True):
         super(Net, self).__init__()
         
         ins, his, ous, acv = default_model(input_size, hidden_size, output_size, 
@@ -86,6 +105,7 @@ class Net(nn.Module):
         self.fc_out = nn.Linear(his[-1], ous)
         
         self.act = select_activation(acv)
+        self.out_func = select_out_func(cfg, task_type)
 
     def forward(self, x):
         x = x.view(x.shape[0], -1)
@@ -98,7 +118,7 @@ class Net(nn.Module):
         
         x = self.fc_out(x)
         
-        output = F.log_softmax(x, dim=1)
+        output = self.out_func(x, dim=1)
         return output
     
     def initialize(self):
