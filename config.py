@@ -1,5 +1,6 @@
 from src.utils import Container, DataName, ActivType, LossType
 from datetime import datetime
+import torch
 
 '''
 MNIST_SIZE = 10000
@@ -38,3 +39,4 @@ if cfg.sch__use:
     cfg.sch__gamma = 0.9
     cfg.sch__step_size = 20
 
+cfg.dev = torch.device("cuda")
