@@ -3,12 +3,11 @@ import numpy as np
 import torch
 import copy
 
-MNIST_SIZE = 1500
+MNIST_SIZE = 10000
 IRIS_SIZE = 150
 ENERGY_SIZE = 768
 
 from enum import Enum, auto
-
 
 class TaskType(Enum):
     REGRESS = auto()

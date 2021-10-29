@@ -1,13 +1,16 @@
 import os
 import torch
 import requests
+
 import pandas as pd
+import numpy as np
 from random import shuffle
+
 from sklearn.datasets import load_iris
 from torchvision import datasets, transforms
 from sklearn.preprocessing import StandardScaler
-from utils import DataName
-import numpy as np
+
+from src.utils import DataName
 
 URL_ENERGY = 'https://archive.ics.uci.edu/ml/machine-learning-databases/00242/ENB2012_data.xlsx'
 

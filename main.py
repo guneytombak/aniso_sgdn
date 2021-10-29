@@ -1,8 +1,9 @@
-from config import cfg
-from run import run
-from utils import cfg_definer
 import pickle5 as pickle
 from datetime import datetime
+
+from config import cfg
+from src.run import run
+from src.utils import cfg_definer
 
 cfgs_fin = list()
 

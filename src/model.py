@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import copy
 
-from utils import ActivType, LossType, TaskType
+from src.utils import ActivType, LossType, TaskType
 
 def default_model(input_size, hidden_size, output_size, 
                   activation, cfg):
@@ -210,9 +210,6 @@ def train_epoch(model, cfg, data_loader,
         gdl.append([gmDL_sq, g_sq, loss])
         
     epoch_loss = np.mean(np.array(losses))
-        
-    if epoch % 2 == 0:
-        print(f'Epoch: {epoch} \tLoss: {epoch_loss:.6f}')
             
     grads = torch.stack(grads, dim=0)
     delLs = torch.stack(delLs, dim=0)
