@@ -215,9 +215,12 @@ def train_epoch(model, cfg, data_loader,
     delLs = torch.stack(delLs, dim=0)
             
     output_data = dict()
-    output_data['delL'] = np.array(delLs)
-    output_data['grad'] = np.array(grads)
-    output_data['loss'] = np.array(losses)
+
+    if cfg.save_weights:
+        output_data['delL'] = np.array(delLs)
+        output_data['grad'] = np.array(grads)
+        output_data['loss'] = np.array(losses)
+    
     output_data['GDL']  = np.array(gdl)
     
     return output_data, writer, epoch_loss

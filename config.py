@@ -3,24 +3,35 @@ from datetime import datetime
 import torch
 
 '''
-MNIST_SIZE = 10000
-IRIS_SIZE = 150
+DIGITS_SIZE = 1797
 ENERGY_SIZE = 768
+GRID_SIZE = 10000
+HOUSE_SIZE = 20640
+IRIS_SIZE = 150
+MNIST_SIZE = 10000
 '''
-
-# Main Parameters
 
 cfg = Container()
 
+# Run Parameters
+
 cfg.seed = 42
+cfg.dev = torch.device("cpu")
+cfg.save_weights = False
 
-cfg.name = "mnist"
+# Dataset/Task Parameters
+
+cfg.name = "default"
 cfg.date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
-cfg.dataset_name = DataName.MNIST
+cfg.dataset_name = DataName.DIGITS
 
-cfg.batch_size = 500
+# Network Parameters
+
+cfg.batch_size = 20
 cfg.lr = 0.005
-cfg.maxiter = 20
+
+# if commented, gets the maximum: SIZE // batch_size
+#cfg.maxiter = 38 
 
 cfg.n_epochs = 100
 
@@ -28,7 +39,7 @@ cfg.activ_type = (ActivType.GELU, ActivType.RELU)
 #cfg.loss_type = LossType.LNN
 
 #cfg.input_size = 8
-cfg.hidden_size = [100, 40]
+cfg.hidden_size = 100
 #cfg.output_size = 2
 
 # Scheduler Parameters
@@ -39,4 +50,3 @@ if cfg.sch__use:
     cfg.sch__gamma = 0.9
     cfg.sch__step_size = 20
 
-cfg.dev = torch.device("cuda")

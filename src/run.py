@@ -3,7 +3,6 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 from tqdm import tqdm
 
-
 from torch.utils.tensorboard import SummaryWriter
 
 from src.utils import seed_everything, default_config, ld2dl

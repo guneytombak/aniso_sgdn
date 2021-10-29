@@ -3,9 +3,12 @@ import numpy as np
 import torch
 import copy
 
-MNIST_SIZE = 10000
-IRIS_SIZE = 150
+DIGITS_SIZE = 1797
 ENERGY_SIZE = 768
+GRID_SIZE = 10000
+HOUSE_SIZE = 20640
+IRIS_SIZE = 150
+MNIST_SIZE = 10000
 
 from enum import Enum, auto
 
@@ -30,6 +33,9 @@ class DataName(Enum):
     IRIS = auto()
     MNIST = auto()
     ENERGY = auto()
+    GRID = auto()
+    HOUSE = auto()
+    DIGITS = auto()
 
 
 class Container():
@@ -104,7 +110,55 @@ def default_config(cfg):
         cfg.sch.gamma = None
         cfg.sch.step_size = None
     
-    if cfg.dataset_name == DataName.IRIS:
+    if cfg.dataset_name == DataName.DIGITS:
+
+        cfg.task_type = TaskType.CLASSIFY
+
+        cfg.input_size = 64
+        cfg.output_size = 10
+        cfg.hidden_size = getattr(cfg, 'hidden_size', 50)
+        cfg.loss_type = LossType.NLL
+        
+        default_maxiter = DIGITS_SIZE // cfg.batch_size
+        cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
+        
+    elif cfg.dataset_name == DataName.ENERGY:
+
+        cfg.task_type = TaskType.REGRESS
+
+        cfg.input_size = 8
+        cfg.output_size = 2
+        cfg.hidden_size = getattr(cfg, 'hidden_size', 50)
+        cfg.loss_type = LossType.MSE
+        
+        default_maxiter = ENERGY_SIZE // cfg.batch_size
+        cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
+    
+    elif cfg.dataset_name == DataName.GRID:
+
+        cfg.task_type = TaskType.REGRESS
+
+        cfg.input_size = 12
+        cfg.output_size = 1
+        cfg.hidden_size = getattr(cfg, 'hidden_size', 50)
+        cfg.loss_type = LossType.MSE
+        
+        default_maxiter = GRID_SIZE // cfg.batch_size
+        cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
+
+    elif cfg.dataset_name == DataName.HOUSE:
+
+        cfg.task_type = TaskType.REGRESS
+
+        cfg.input_size = 8
+        cfg.output_size = 1
+        cfg.hidden_size = getattr(cfg, 'hidden_size', 50)
+        cfg.loss_type = LossType.MSE
+        
+        default_maxiter = HOUSE_SIZE // cfg.batch_size
+        cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
+        
+    elif cfg.dataset_name == DataName.IRIS:
 
         cfg.task_type = TaskType.CLASSIFY
 
@@ -126,19 +180,6 @@ def default_config(cfg):
         cfg.loss_type = LossType.NLL
         
         default_maxiter = MNIST_SIZE // cfg.batch_size
-        cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
-        
-            
-    elif cfg.dataset_name == DataName.ENERGY:
-
-        cfg.task_type = TaskType.REGRESS
-
-        cfg.input_size = 8
-        cfg.output_size = 2
-        cfg.hidden_size = getattr(cfg, 'hidden_size', 50)
-        cfg.loss_type = LossType.MSE
-        
-        default_maxiter = ENERGY_SIZE // cfg.batch_size
         cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
 
     print(f"Maxiter is {cfg.maxiter}/{default_maxiter}")
