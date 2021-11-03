@@ -15,19 +15,19 @@ cfg = Container()
 
 # Run Parameters
 
-cfg.seed = 42
-cfg.dev = torch.device("cpu")
+cfg.seed = (42, 78, 128, 733, 17)
+cfg.dev = torch.device("cuda")
 cfg.save_weights = False
 
 # Dataset/Task Parameters
 
 cfg.name = "default"
-cfg.date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
-cfg.dataset_name = DataName.DIGITS
+#cfg.date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
+cfg.dataset_name = DataName.GRID
 
 # Network Parameters
 
-cfg.batch_size = 20
+cfg.batch_size = 100
 cfg.lr = 0.005
 
 # if commented, gets the maximum: SIZE // batch_size
@@ -35,11 +35,11 @@ cfg.lr = 0.005
 
 cfg.n_epochs = 100
 
-cfg.activ_type = (ActivType.GELU, ActivType.RELU)
+cfg.activ_type = (ActivType.RELU, ActivType.SIGMOID)
 #cfg.loss_type = LossType.LNN
 
 #cfg.input_size = 8
-cfg.hidden_size = 100
+cfg.hidden_size = (100, [100, 10])
 #cfg.output_size = 2
 
 # Scheduler Parameters

@@ -95,7 +95,6 @@ def default_config(cfg):
     cfg.batch_size = getattr(cfg, 'batch_size', 4)
     cfg.lr = getattr(cfg, 'lr', 0.005)
     cfg.n_epochs = getattr(cfg, 'n_epochs', 100)
-    cfg.activation = getattr(cfg, 'activation', 'relu')
     
     if not hasattr(cfg, 'sch'):
         sch = Container()

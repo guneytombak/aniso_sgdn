@@ -4,6 +4,7 @@
 *.sw/
 **/results
 **/.vscode
+**/wandb
 
 ### JupyterNotebooks ###
 # gitignore template for Jupyter Notebooks

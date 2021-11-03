@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import copy
 
+import wandb
+
 from src.utils import ActivType, LossType, TaskType
 
 def default_model(input_size, hidden_size, output_size, 
@@ -51,7 +53,7 @@ def select_loss(loss_type):
         sys.exit(f'No loss function provided for \"{loss_type}\"')
     
 
-def check_maxiter(maxiter, data_loader, epoch):
+def check_maxiter(maxiter, data_loader):
     
     possible_maxiter = len(data_loader.dataset) // data_loader.batch_size
     
@@ -164,10 +166,10 @@ def eval_expectation(data_loader, model, device, optimizer, loss_func):
         
         
 def train_epoch(model, cfg, data_loader, 
-                optimizer, epoch, writer):
+                optimizer, epoch):
     
     loss_func = select_loss(cfg.loss_type)
-    maxiter = check_maxiter(cfg.maxiter, data_loader, epoch)  
+    maxiter = check_maxiter(cfg.maxiter, data_loader)  
     
     model.train()
     
@@ -202,10 +204,10 @@ def train_epoch(model, cfg, data_loader,
         gmDL_sq = np.float64(torch.sum(torch.square(grad - delL)))
         loss = np.float64(loss)
         iter_no = batch_idx + epoch*maxiter
-        
-        writer.add_scalars('main', {'(g-DL)^2'  : gmDL_sq,
-                                    'g^2'       : g_sq,
-                                    'L'         : loss}, iter_no)
+
+        wandb.log({'D'  : gmDL_sq,
+                   'G'  : g_sq,
+                   'L'  : loss})
         
         gdl.append([gmDL_sq, g_sq, loss])
         
@@ -223,4 +225,4 @@ def train_epoch(model, cfg, data_loader,
     
     output_data['GDL']  = np.array(gdl)
     
-    return output_data, writer, epoch_loss
+    return output_data, epoch_loss
