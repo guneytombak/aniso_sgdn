@@ -46,9 +46,18 @@ def select_activation(activation):
 def select_loss(loss_type):
     
     if loss_type == LossType.NLL:
-        return F.nll_loss
+        return nn.CrossEntropyLoss()
     elif loss_type == LossType.MSE:
         return F.mse_loss
+    else:
+        sys.exit(f'No loss function provided for \"{loss_type}\"')
+
+def select_upper_bound(loss_type):
+
+    if loss_type == LossType.NLL:
+        return lambda Dh, L : 2*Dh*min(1.0, L)
+    elif loss_type == LossType.MSE:
+        return lambda Dh, L : Dh*L
     else:
         sys.exit(f'No loss function provided for \"{loss_type}\"')
     
@@ -64,22 +73,17 @@ def check_maxiter(maxiter, data_loader):
 
 def select_out_func(cfg, task_type):
 
-    if task_type is None:
-        if cfg.task_type is not None:
-            task_type = cfg.task_type
-        else:
-            sys.exit('No task type specified!')
-        
-    if task_type == TaskType.CLASSIFY:
-        return F.log_softmax
-    elif task_type == TaskType.REGRESS:
-
         id_in = nn.Identity()
 
         def id(arg1, *argv, **kwargs):
             return id_in(arg1)
 
         return id
+
+def random_update_function(p, p_grad, loss):
+    dev = p.get_device()
+    dp = torch.randn(1).to(dev)
+    return dp
 
 
 class Net(nn.Module):
@@ -169,7 +173,8 @@ def train_epoch(model, cfg, data_loader,
                 optimizer, epoch):
     
     loss_func = select_loss(cfg.loss_type)
-    maxiter = check_maxiter(cfg.maxiter, data_loader)  
+    upper_bound_func = select_upper_bound(cfg.loss_type)
+    maxiter = check_maxiter(cfg.maxiter, data_loader)
     
     model.train()
     
@@ -192,13 +197,33 @@ def train_epoch(model, cfg, data_loader,
 
         data, target = data.to(cfg.dev), target.to(cfg.dev)
         optimizer.zero_grad() # REVIEW
-        output = model(data)
+        output = model(data)       
+
+        grad_h = torch.zeros(output.size(0), output.size(1), model.get_grads().size(0))
+
+        for i in range(output.size(0)):
+            for j in range(output.size(1)):
+                output[i, j].backward(retain_graph=True, create_graph=True)
+                grad_h[i, j] = model.get_grads()
+                optimizer.zero_grad()
+
         loss = loss_func(output, target)
         losses.append(np.float64(loss))
-        loss.backward()
+        loss.backward(retain_graph=True, create_graph=True)
         grad = model.get_grads()
         grads.append(grad)
-        optimizer.step()
+
+        if cfg.learn:
+            optimizer.step()
+        else:
+            with torch.no_grad():
+                for p in model.parameters():
+                    new_val = random_update_function(p, p.grad, loss)
+                    p.copy_(new_val)
+        
+        grad_h2 = float(torch.max(grad_h**2))
+
+        upper_bound = upper_bound_func(grad_h2, loss)
         
         g_sq = np.float64(torch.sum(torch.square(grad)))
         gmDL_sq = np.float64(torch.sum(torch.square(grad - delL)))
@@ -207,7 +232,9 @@ def train_epoch(model, cfg, data_loader,
 
         wandb.log({'D'  : gmDL_sq,
                    'G'  : g_sq,
-                   'L'  : loss})
+                   'L'  : loss,
+                   'Dh' : grad_h2,
+                   'U'  : upper_bound})
         
         gdl.append([gmDL_sq, g_sq, loss])
         
