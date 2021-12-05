@@ -5,9 +5,10 @@ from tqdm import tqdm
 
 import wandb
 
-from src.utils import seed_everything, default_config, ld2dl
+from src.utils import seed_everything, default_config
 from src.data import get_data
-from src.model import Net, train_epoch
+from src.model import Net
+from src.training import train_epoch
 
 def run(cfg):
     
@@ -30,18 +31,14 @@ def run(cfg):
 
     # data
     dataset = get_data(cfg.dataset_name)
-    data_loader = torch.utils.data.DataLoader(dataset,  cfg.batch_size, shuffle=True)
+    batch_loader = torch.utils.data.DataLoader(dataset,  cfg.batch_size, shuffle=True)
+    single_loader = torch.utils.data.DataLoader(dataset, 1, shuffle=True) 
 
     model.initialize()
     model.to(cfg.dev)
-    data_list = list()
     pbar = tqdm(range(cfg.n_epochs))
     for epoch in pbar:
-        data, epoch_loss = train_epoch(model, cfg, data_loader, 
-                                               optimizer, epoch)
+        epoch_loss = train_epoch(model, cfg, batch_loader, single_loader, optimizer)
         pbar.set_description(f"Epoch Loss: {epoch_loss:.5f}", refresh=True)
-        data_list.append(data)
         if cfg.sch__use:
             scheduler.step()
-        
-    return ld2dl(data_list)

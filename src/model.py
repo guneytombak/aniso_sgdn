@@ -2,6 +2,7 @@ import sys
 import numpy as np
 
 import torch
+from torch import optim
 import torch.nn as nn
 import torch.nn.functional as F
 import copy
@@ -9,82 +10,6 @@ import copy
 import wandb
 
 from src.utils import ActivType, LossType, TaskType
-
-def default_model(input_size, hidden_size, output_size, 
-                  activation, cfg):
-    
-    if cfg is not None:
-    
-        if input_size is None:
-            input_size = cfg.input_size
-        
-        if hidden_size is None:
-            hidden_size = cfg.hidden_size
-            
-        if output_size is None:
-            output_size = cfg.output_size
-            
-        if activation is None:
-            activation = cfg.activ_type
-        
-    return input_size, hidden_size, output_size, activation
-
-def select_activation(activation):
-    
-    if activation == ActivType.GELU:
-        return nn.GELU()
-    elif activation ==  ActivType.RELU:
-        return nn.ReLU()
-    elif activation ==  ActivType.SIGMOID:
-        return nn.Sigmoid()
-    elif activation ==  ActivType.ID:
-        return nn.Identity()
-    else:
-        print(f'No activation provided for \"{activation}\", using no activation.')
-        return nn.Identity()
-
-def select_loss(loss_type):
-    
-    if loss_type == LossType.NLL:
-        return nn.CrossEntropyLoss()
-    elif loss_type == LossType.MSE:
-        return F.mse_loss
-    else:
-        sys.exit(f'No loss function provided for \"{loss_type}\"')
-
-def select_upper_bound(loss_type):
-
-    if loss_type == LossType.NLL:
-        return lambda Dh, L : 2*Dh*min(1.0, L)
-    elif loss_type == LossType.MSE:
-        return lambda Dh, L : Dh*L
-    else:
-        sys.exit(f'No loss function provided for \"{loss_type}\"')
-    
-
-def check_maxiter(maxiter, data_loader):
-    
-    possible_maxiter = len(data_loader.dataset) // data_loader.batch_size
-    
-    if maxiter > possible_maxiter:
-        sys.exit(f'Change maxiter from {maxiter} to {possible_maxiter} or lower!')
-
-    return maxiter
-
-def select_out_func(cfg, task_type):
-
-        id_in = nn.Identity()
-
-        def id(arg1, *argv, **kwargs):
-            return id_in(arg1)
-
-        return id
-
-def random_update_function(p, p_grad, loss):
-    dev = p.get_device()
-    dp = torch.randn(1).to(dev)
-    return dp
-
 
 class Net(nn.Module):
     def __init__(self, cfg=None, input_size=None, 
@@ -111,7 +36,7 @@ class Net(nn.Module):
         self.fc_out = nn.Linear(his[-1], ous)
         
         self.act = select_activation(acv)
-        self.out_func = select_out_func(cfg, task_type)
+        self.out_func = id_func
 
     def forward(self, x):
         x = x.view(x.shape[0], -1)
@@ -150,106 +75,38 @@ class Net(nn.Module):
         g_out = self.fc_out.weight._grad.cpu().view(-1).clone()
         return torch.cat((g, g_out), 0)
 
-
-def eval_expectation(data_loader, model, device, optimizer, loss_func):
+def default_model(input_size, hidden_size, output_size, 
+                  activation, cfg):
     
-    grads = []
-    for batch_idx, (data, target) in enumerate(data_loader):
-        data, target = data.to(device), target.to(device)
-        optimizer.zero_grad() # REVIEW
-        output = model(data)
-        loss = loss_func(output, target).mean()
-        loss.backward()
-        
-        grads.append(model.get_grads())
+    if cfg is not None:
     
-    grads = torch.stack(grads, dim=0)
-    delL = grads.mean(0)
-
-    return delL
+        if input_size is None:
+            input_size = cfg.input_size
         
-        
-def train_epoch(model, cfg, data_loader, 
-                optimizer, epoch):
-    
-    loss_func = select_loss(cfg.loss_type)
-    upper_bound_func = select_upper_bound(cfg.loss_type)
-    maxiter = check_maxiter(cfg.maxiter, data_loader)
-    
-    model.train()
-    
-    delLs = list()
-    losses = list()
-    grads = list()
-    
-    gdl = list()
-    
-    eval_loader = copy.deepcopy(data_loader)
-    
-    for batch_idx, (data, target) in enumerate(data_loader):
-        
-        if batch_idx > (maxiter-1):
-            break
-        
-        delL = eval_expectation(eval_loader, model, 
-                                cfg.dev, optimizer, loss_func)
-        delLs.append(delL)
-
-        data, target = data.to(cfg.dev), target.to(cfg.dev)
-        optimizer.zero_grad() # REVIEW
-        output = model(data)       
-
-        grad_h = torch.zeros(output.size(0), output.size(1), model.get_grads().size(0))
-
-        for i in range(output.size(0)):
-            for j in range(output.size(1)):
-                output[i, j].backward(retain_graph=True, create_graph=True)
-                grad_h[i, j] = model.get_grads()
-                optimizer.zero_grad()
-
-        loss = loss_func(output, target)
-        losses.append(np.float64(loss))
-        loss.backward(retain_graph=True, create_graph=True)
-        grad = model.get_grads()
-        grads.append(grad)
-
-        if cfg.learn:
-            optimizer.step()
-        else:
-            with torch.no_grad():
-                for p in model.parameters():
-                    new_val = random_update_function(p, p.grad, loss)
-                    p.copy_(new_val)
-        
-        grad_h2 = float(torch.max(grad_h**2))
-
-        upper_bound = upper_bound_func(grad_h2, loss)
-        
-        g_sq = np.float64(torch.sum(torch.square(grad)))
-        gmDL_sq = np.float64(torch.sum(torch.square(grad - delL)))
-        loss = np.float64(loss)
-        iter_no = batch_idx + epoch*maxiter
-
-        wandb.log({'D'  : gmDL_sq,
-                   'G'  : g_sq,
-                   'L'  : loss,
-                   'Dh' : grad_h2,
-                   'U'  : upper_bound})
-        
-        gdl.append([gmDL_sq, g_sq, loss])
-        
-    epoch_loss = np.mean(np.array(losses))
+        if hidden_size is None:
+            hidden_size = cfg.hidden_size
             
-    grads = torch.stack(grads, dim=0)
-    delLs = torch.stack(delLs, dim=0)
+        if output_size is None:
+            output_size = cfg.output_size
             
-    output_data = dict()
+        if activation is None:
+            activation = cfg.activ_type
+        
+    return input_size, hidden_size, output_size, activation
 
-    if cfg.save_weights:
-        output_data['delL'] = np.array(delLs)
-        output_data['grad'] = np.array(grads)
-        output_data['loss'] = np.array(losses)
+def select_activation(activation):
     
-    output_data['GDL']  = np.array(gdl)
-    
-    return output_data, epoch_loss
+    if activation == ActivType.GELU:
+        return nn.GELU()
+    elif activation ==  ActivType.RELU:
+        return nn.ReLU()
+    elif activation ==  ActivType.SIGMOID:
+        return nn.Sigmoid()
+    elif activation ==  ActivType.ID:
+        return nn.Identity()
+    else:
+        print(f'No activation provided for \"{activation}\", using no activation.')
+        return nn.Identity()
+
+def id_func(arg1, *argv, **kwargs):
+    return nn.Identity()(arg1)

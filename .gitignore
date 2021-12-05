@@ -5,6 +5,7 @@
 **/results
 **/.vscode
 **/wandb
+dummy.py
 
 ### JupyterNotebooks ###
 # gitignore template for Jupyter Notebooks

@@ -12,10 +12,11 @@ MNIST_SIZE = 10000
 '''
 
 cfg = Container()
+cfg.online = False
 
 # Run Parameters
 
-cfg.seed = (42, 78, 128, 733, 17)
+cfg.seed = 42
 cfg.dev = torch.device("cuda")
 cfg.save_weights = False
 
@@ -23,17 +24,22 @@ cfg.save_weights = False
 
 cfg.name = "default"
 #cfg.date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
-cfg.dataset_name = DataName.GRID
+cfg.dataset_name = DataName.DIGITS
 
 # Network Parameters
 
-cfg.batch_size = 100
+cfg.batch_size = 33
 cfg.lr = 0.005
+
+cfg.learn = True
+cfg.rand_bound = 10
+cfg.rand_step_size = 0.1
 
 # if commented, gets the maximum: SIZE // batch_size
 #cfg.maxiter = 38 
 
-cfg.n_epochs = 100
+cfg.n_epochs = 10
+cfg.per_epoch_test = 12
 
 cfg.activ_type = (ActivType.RELU, ActivType.SIGMOID)
 #cfg.loss_type = LossType.LNN

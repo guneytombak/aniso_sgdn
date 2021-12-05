@@ -16,7 +16,10 @@ def main(cfg):
     for ind, cfg in enumerate(cfg_list):
         print(f"RUNNING CONFIG NO {ind+1}/{n_cfgs}")
 
-        wb_run = wandb.init(reinit=True, config=cfg.to_dict())
+        if cfg.online:
+            wb_run = wandb.init(reinit=True, config=cfg.to_dict())
+        else:
+            wb_run = wandb.init(reinit=True, config=cfg.to_dict(), mode="disabled")
         
         run(cfg)
         #cfg.finish_date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
