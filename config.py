@@ -4,7 +4,7 @@ import torch
 
 '''
 DIGITS_SIZE = 1797
-ENERGY_SIZE = 768
+ENERGY_SIZE = 768 | 8->h->2
 GRID_SIZE = 10000
 HOUSE_SIZE = 20640
 IRIS_SIZE = 150
@@ -28,24 +28,24 @@ cfg.dataset_name = DataName.DIGITS
 
 # Network Parameters
 
-cfg.batch_size = 33
+cfg.batch_size = 16
 cfg.lr = 0.005
 
-cfg.learn = True
+cfg.learn = (True, False)
 cfg.rand_bound = 10
 cfg.rand_step_size = 0.1
 
 # if commented, gets the maximum: SIZE // batch_size
 #cfg.maxiter = 38 
 
-cfg.n_epochs = 10
-cfg.per_epoch_test = 12
+cfg.n_epochs = 30
+cfg.per_epoch_test = 10
 
 cfg.activ_type = (ActivType.RELU, ActivType.SIGMOID)
 #cfg.loss_type = LossType.LNN
 
 #cfg.input_size = 8
-cfg.hidden_size = (100, [100, 10])
+cfg.hidden_size = ([128, 32], 1024)
 #cfg.output_size = 2
 
 # Scheduler Parameters

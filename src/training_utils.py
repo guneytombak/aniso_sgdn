@@ -9,17 +9,8 @@ def select_loss(loss_type):
     if loss_type == LossType.NLL:
         return nn.CrossEntropyLoss()
     elif loss_type == LossType.MSE:
-        mse = nn.MSELoss()
-        return lambda i, o : mse(i, o)/2
-    else:
-        sys.exit(f'No loss function provided for \"{loss_type}\"')
-
-def select_upper_bound(loss_type):
-
-    if loss_type == LossType.NLL:
-        return lambda Dh, L : 2*Dh*min(1.0, L)
-    elif loss_type == LossType.MSE:
-        return lambda Dh, L : Dh*L
+        mse = nn.MSELoss(reduction='mean')
+        return lambda i, o : i.size(1)*mse(i, o)/2
     else:
         sys.exit(f'No loss function provided for \"{loss_type}\"')
     

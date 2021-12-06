@@ -4,11 +4,42 @@ import torch
 from torch import optim
 import wandb
 import copy
-from src.training_utils import select_loss, select_upper_bound, check_maxiter, random_update_function, trace
+from src.training_utils import select_loss, check_maxiter, random_update_function
 from src.model import id_func
 from src.utils import LossType
 
+def calculate_integral(h, gh, data_loader):
+
+    integrant = list()
+
+    for batch_idx, (data, target) in enumerate(data_loader):
+
+        diff_yh2 = torch.sum((target-h[batch_idx])**2)
+        trace = gh[batch_idx].T @ gh[batch_idx]
+
+        integrant.append(diff_yh2*trace)
+
+    return torch.mean(torch.stack(integrant))
+    
+
+def get_n_losses(data_loader, model_actual, loss_func):
+
+    device = torch.device("cpu")
+    model = copy.deepcopy(model_actual).to(device)
+
+    for batch_idx, (data, target) in enumerate(data_loader):
+        data, target = data.to(device), target.to(device)
+        output = model(data)
+        loss = loss_func(output, target)
+
+        if loss.dim() == 0:
+            return 1
+        else:
+            return len(loss.flatten())
+
 def eval_grad(data_loader, model_actual, optimizer_actual, loss_func):
+
+    n_losses = get_n_losses(data_loader, model_actual, loss_func)
 
     device = torch.device("cpu")
     model = copy.deepcopy(model_actual).to(device)
@@ -16,47 +47,54 @@ def eval_grad(data_loader, model_actual, optimizer_actual, loss_func):
 
     losses = list()
     grads = list()
-    for batch_idx, (data, target) in enumerate(data_loader):
-        data, target = data.to(device), target.to(device)
-        optimizer.zero_grad() # REVIEW
-        output = model(data)
-        loss = loss_func(output, target)
 
-        if loss.dim() == 0:
-            pass
-        elif len(loss) > 1:
-            raise NotImplementedError
+    for k in range(n_losses):
 
-        loss.backward()
-        losses.append(loss)
-        grads.append(model.get_grads())
+        if n_losses > 1:
+            losses_k = list()
+            grads_k = list()
+
+        for batch_idx, (data, target) in enumerate(data_loader):
+            data, target = data.to(device), target.to(device)
+            optimizer.zero_grad() # REVIEW
+            output = model(data)
+            loss = loss_func(output, target)
+
+            if n_losses > 1:
+                loss = loss.flatten()
+
+            if n_losses == 1:
+                loss.backward()
+                losses.append(loss)
+                grads.append(model.get_grads())
+            else:
+                loss[k].backward()
+                losses_k.append(loss[k])
+                grads_k.append(model.get_grads())
+
+        if n_losses > 1:
+            grads.append(torch.stack(grads_k, dim=0))
+            losses.append(torch.stack(losses_k, dim=0))
     
     grads = torch.stack(grads, dim=0)
     losses = torch.stack(losses, dim=0)
 
+    if n_losses > 1:
+        grads = grads.transpose(0, 1)
+        losses = losses.transpose(0, 1)
+
     expected_grad = torch.mean(grads, 0)
-    expected_loss = torch.mean(losses)
-
-    '''
-    optimizer.zero_grad() # REVIEW
-    expected_loss.backward()
-    grad_expected = model.get_grads()
-    '''
-
-    return grads, losses, expected_grad #, grad_expected
+    return grads, losses, expected_grad
 
 
 def train_epoch(model, cfg, batch_loader, single_loader, optimizer):
     
     loss_func = select_loss(cfg.loss_type)
-    upper_bound_func = select_upper_bound(cfg.loss_type)
     maxiter = check_maxiter(cfg.maxiter, batch_loader)
     
     model.train()
 
     per_iter_idx_run = int(np.ceil(maxiter/cfg.per_epoch_test))
-    
-    eval_loader = copy.deepcopy(batch_loader)
 
     loss_list = list()
     
@@ -74,6 +112,8 @@ def train_epoch(model, cfg, batch_loader, single_loader, optimizer):
             lower_bound = torch.mean(torch.sum((expected_grad_loss - grad_loss_stack)**2, 1))
             
             grad_output_stack, output_stack, _= eval_grad(single_loader, model, optimizer, id_func)
+            # REVIEW Whether use 
+            grad_output_stack = grad_output_stack.reshape(grad_output_stack.size(0), -1)
             max_magnitude_square_grad_output = torch.max(torch.sum(grad_output_stack**2, 1))
 
             if cfg.loss_type == LossType.MSE:
@@ -81,11 +121,14 @@ def train_epoch(model, cfg, batch_loader, single_loader, optimizer):
             elif cfg.loss_type == LossType.NLL:
                 upper_bound = 2*max_magnitude_square_grad_output*min(1,expected_loss)
 
+            integral = calculate_integral(output_stack, grad_output_stack, single_loader)
+
             wandb.log({ 'Lower'  : lower_bound,
                         'Grad2'  : torch.sum(expected_grad_loss**2),
                         'Loss'   : expected_loss,
                         'Dh2'    : max_magnitude_square_grad_output,
-                        'Upper'  : upper_bound
+                        'Upper'  : upper_bound,
+                        'Int'    : integral
                         })
 
         # Step

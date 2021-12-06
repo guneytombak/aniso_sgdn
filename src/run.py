@@ -32,7 +32,7 @@ def run(cfg):
     # data
     dataset = get_data(cfg.dataset_name)
     batch_loader = torch.utils.data.DataLoader(dataset,  cfg.batch_size, shuffle=True)
-    single_loader = torch.utils.data.DataLoader(dataset, 1, shuffle=True) 
+    single_loader = torch.utils.data.DataLoader(dataset, 1, shuffle=False) #! Important
 
     model.initialize()
     model.to(cfg.dev)
