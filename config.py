@@ -5,14 +5,14 @@ import torch
 '''
 DIGITS_SIZE = 1797
 ENERGY_SIZE = 768 | 8->h->2
-GRID_SIZE = 10000
+GRID_SIZE = 10000 | 12->h->1
 HOUSE_SIZE = 20640
 IRIS_SIZE = 150
 MNIST_SIZE = 10000
 '''
 
 cfg = Container()
-cfg.online = False
+cfg.online = True
 
 # Run Parameters
 
@@ -24,16 +24,16 @@ cfg.save_weights = False
 
 cfg.name = "default"
 #cfg.date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
-cfg.dataset_name = DataName.DIGITS
+cfg.dataset_name = DataName.ENERGY
 
 # Network Parameters
 
-cfg.batch_size = 16
+cfg.batch_size = 33
 cfg.lr = 0.005
 
 cfg.learn = (True, False)
-cfg.rand_bound = 10
-cfg.rand_step_size = 0.1
+cfg.rand_bound = 1
+cfg.rand_step_size = 0.01
 
 # if commented, gets the maximum: SIZE // batch_size
 #cfg.maxiter = 38 
@@ -45,7 +45,7 @@ cfg.activ_type = (ActivType.RELU, ActivType.SIGMOID)
 #cfg.loss_type = LossType.LNN
 
 #cfg.input_size = 8
-cfg.hidden_size = ([128, 32], 1024)
+cfg.hidden_size = (128, [128, 16]) 
 #cfg.output_size = 2
 
 # Scheduler Parameters

@@ -24,8 +24,6 @@ def run(cfg):
     model = Net(cfg=cfg).to(cfg.dev)
     optimizer = optim.SGD(model.parameters(), cfg.lr)
 
-    wandb.watch(model)
-
     if cfg.sch__use:
         scheduler = StepLR(optimizer, step_size=cfg.sch__step_size, gamma=cfg.sch__gamma)
 
@@ -37,6 +35,7 @@ def run(cfg):
     model.initialize()
     model.to(cfg.dev)
     pbar = tqdm(range(cfg.n_epochs))
+    wandb.watch(model)
     for epoch in pbar:
         epoch_loss = train_epoch(model, cfg, batch_loader, single_loader, optimizer)
         pbar.set_description(f"Epoch Loss: {epoch_loss:.5f}", refresh=True)

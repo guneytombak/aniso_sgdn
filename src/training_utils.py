@@ -27,6 +27,8 @@ def check_maxiter(maxiter, data_loader):
 def random_update_function(p, p_grad, loss, cfg):
     
     dev = p.get_device()
+    dev = dev if dev >= 0 else torch.device("cpu")
+        
     dp = cfg.rand_step_size*torch.randn(p.shape).to(dev)
 
     p_new = p + dp

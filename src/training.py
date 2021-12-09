@@ -10,16 +10,26 @@ from src.utils import LossType
 
 def calculate_integral(h, gh, data_loader):
 
-    integrant = list()
+    integrant_1 = list()
+    integrant_2 = list()
+    sup_trace = 0.0
 
     for batch_idx, (data, target) in enumerate(data_loader):
 
         diff_yh2 = torch.sum((target-h[batch_idx])**2)
-        trace = gh[batch_idx].T @ gh[batch_idx]
+        diff_yh = torch.sqrt(diff_yh2)
+        trace = torch.trace(gh[batch_idx] @ gh[batch_idx].T)
+        if sup_trace < trace:
+            sup_trace = trace
+        trace_sq = torch.sqrt(trace)
 
-        integrant.append(diff_yh2*trace)
+        integrant_1.append(diff_yh2*trace)
+        integrant_2.append(diff_yh*trace_sq)
 
-    return torch.mean(torch.stack(integrant))
+    integral_1 = torch.mean(torch.stack(integrant_1))
+    integral_2 = torch.mean(torch.stack(integrant_2))**2
+
+    return integral_1, integral_2, sup_trace
     
 
 def get_n_losses(data_loader, model_actual, loss_func):
@@ -83,8 +93,8 @@ def eval_grad(data_loader, model_actual, optimizer_actual, loss_func):
         grads = grads.transpose(0, 1)
         losses = losses.transpose(0, 1)
 
-    expected_grad = torch.mean(grads, 0)
-    return grads, losses, expected_grad
+    
+    return grads, losses
 
 
 def train_epoch(model, cfg, batch_loader, single_loader, optimizer):
@@ -106,29 +116,38 @@ def train_epoch(model, cfg, batch_loader, single_loader, optimizer):
         if not (batch_idx % per_iter_idx_run):
 
             # Gradient Computation
-            grad_loss_stack, loss_stack, expected_grad_loss = eval_grad(single_loader, model, optimizer, loss_func)
+            grad_loss_stack, loss_stack = eval_grad(single_loader, model, optimizer, loss_func)
+            expected_grad_loss = torch.mean(grad_loss_stack, 0)
+            expected_square_grad_loss = torch.mean(grad_loss_stack**2, 0)
             expected_loss = torch.mean(loss_stack)
 
             lower_bound = torch.mean(torch.sum((expected_grad_loss - grad_loss_stack)**2, 1))
             
-            grad_output_stack, output_stack, _= eval_grad(single_loader, model, optimizer, id_func)
-            # REVIEW Whether use 
-            grad_output_stack = grad_output_stack.reshape(grad_output_stack.size(0), -1)
-            max_magnitude_square_grad_output = torch.max(torch.sum(grad_output_stack**2, 1))
+            grad_output_stack, output_stack = eval_grad(single_loader, model, optimizer, id_func)
+
+            # REVIEW
+            grad_output_stack_flattened = grad_output_stack.reshape(grad_output_stack.size(0), -1) 
+            max_magnitude_square_grad_output = torch.max(torch.sum(grad_output_stack_flattened**2, 1))
 
             if cfg.loss_type == LossType.MSE:
+                integral_1, integral_2, sup_trace = calculate_integral(output_stack, grad_output_stack, single_loader)
+                assert torch.isclose(sup_trace, max_magnitude_square_grad_output)
                 upper_bound = 2*max_magnitude_square_grad_output*expected_loss
             elif cfg.loss_type == LossType.NLL:
-                upper_bound = 2*max_magnitude_square_grad_output*min(1,expected_loss)
+                upper_bound = 2*max_magnitude_square_grad_output*min(1.0, expected_loss)
+                integral_1, integral_2 = upper_bound, upper_bound
 
-            integral = calculate_integral(output_stack, grad_output_stack, single_loader)
+            #theta = wandb.Table(data=[[a] for a in model.get_wb()], columns=["wnb"])
 
             wandb.log({ 'Lower'  : lower_bound,
-                        'Grad2'  : torch.sum(expected_grad_loss**2),
+                        'EoSq'   : torch.sum(expected_square_grad_loss),
+                        'SqoE'   : torch.sum(expected_grad_loss**2),
                         'Loss'   : expected_loss,
                         'Dh2'    : max_magnitude_square_grad_output,
                         'Upper'  : upper_bound,
-                        'Int'    : integral
+                        'Int1'   : integral_1,
+                        'Int2'   : integral_2,
+                        #'Theta'  : wandb.plot.histogram(theta, "wnb", title="WB Histogram")
                         })
 
         # Step
