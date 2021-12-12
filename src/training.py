@@ -18,7 +18,11 @@ def calculate_integral(h, gh, data_loader):
 
         diff_yh2 = torch.sum((target-h[batch_idx])**2)
         diff_yh = torch.sqrt(diff_yh2)
-        trace = torch.trace(gh[batch_idx] @ gh[batch_idx].T)
+        M = gh[batch_idx] @ gh[batch_idx].T
+        if M.dim() == 0:
+            trace = M
+        else:
+            trace = torch.trace(M)
         if sup_trace < trace:
             sup_trace = trace
         trace_sq = torch.sqrt(trace)
@@ -116,12 +120,23 @@ def train_epoch(model, cfg, batch_loader, single_loader, optimizer):
         if not (batch_idx % per_iter_idx_run):
 
             # Gradient Computation
+            
+            # grad_loss_stack (n_samples, n_params), loss_stack (n_samples)
             grad_loss_stack, loss_stack = eval_grad(single_loader, model, optimizer, loss_func)
-            expected_grad_loss = torch.mean(grad_loss_stack, 0)
-            expected_square_grad_loss = torch.mean(grad_loss_stack**2, 0)
-            expected_loss = torch.mean(loss_stack)
-
-            lower_bound = torch.mean(torch.sum((expected_grad_loss - grad_loss_stack)**2, 1))
+            # expected_grad_loss (n_params)
+            exp_grad_loss = torch.mean(grad_loss_stack, 0)
+            # magnitude_square_grad_loss (n_samples)
+            mag_sq_grad_loss = torch.sum(grad_loss_stack**2, 1)
+            # expected_magnitude_square_grad_loss ()
+            exp_mag_sq_grad_loss = torch.mean(mag_sq_grad_loss)
+            # expected_loss ()
+            exp_loss = torch.mean(loss_stack)
+            # square_deviation_from_expected_grad_loss (n_samples, n_params)
+            sq_dev_from_exp_grad_loss = (exp_grad_loss - grad_loss_stack)**2
+            # magnitude_square_deviation_from_expected_grad_loss (n_samples)
+            mag_sq_dev_from_exp_grad_loss = torch.sum(sq_dev_from_exp_grad_loss, 1)
+            # lower_bound ()
+            lower_bound = torch.mean(mag_sq_dev_from_exp_grad_loss)
             
             grad_output_stack, output_stack = eval_grad(single_loader, model, optimizer, id_func)
 
@@ -132,17 +147,16 @@ def train_epoch(model, cfg, batch_loader, single_loader, optimizer):
             if cfg.loss_type == LossType.MSE:
                 integral_1, integral_2, sup_trace = calculate_integral(output_stack, grad_output_stack, single_loader)
                 assert torch.isclose(sup_trace, max_magnitude_square_grad_output)
-                upper_bound = 2*max_magnitude_square_grad_output*expected_loss
+                upper_bound = 2*max_magnitude_square_grad_output*exp_loss
             elif cfg.loss_type == LossType.NLL:
-                upper_bound = 2*max_magnitude_square_grad_output*min(1.0, expected_loss)
+                upper_bound = 2*max_magnitude_square_grad_output*min(1.0, exp_loss)
                 integral_1, integral_2 = upper_bound, upper_bound
 
             #theta = wandb.Table(data=[[a] for a in model.get_wb()], columns=["wnb"])
 
             wandb.log({ 'Lower'  : lower_bound,
-                        'EoSq'   : torch.sum(expected_square_grad_loss),
-                        'SqoE'   : torch.sum(expected_grad_loss**2),
-                        'Loss'   : expected_loss,
+                        'EoSq'   : exp_mag_sq_grad_loss,
+                        'Loss'   : exp_loss,
                         'Dh2'    : max_magnitude_square_grad_output,
                         'Upper'  : upper_bound,
                         'Int1'   : integral_1,
