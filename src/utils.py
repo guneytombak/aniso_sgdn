@@ -3,6 +3,8 @@ import numpy as np
 import torch
 import copy
 
+# Number of samples of datasets
+
 DIGITS_SIZE = 1797
 ENERGY_SIZE = 768
 GRID_SIZE = 10000
@@ -13,11 +15,17 @@ MNIST_SIZE = 10000
 from enum import Enum, auto
 
 class TaskType(Enum):
+    """
+    Task types used
+    """
     REGRESS = auto()
     CLASSIFY = auto()
 
 
 class ActivType(Enum):
+    """
+    Activation functions used
+    """
     ID = auto()
     SIGMOID = auto()
     RELU = auto()
@@ -25,11 +33,19 @@ class ActivType(Enum):
     
 
 class LossType(Enum):
+    """
+    Loss functions used
+    NLL for classification
+    MSE for regression
+    """
     NLL = auto()
     MSE = auto()
 
 
 class DataName(Enum):
+    """
+    Dataset names
+    """
     IRIS = auto()
     MNIST = auto()
     ENERGY = auto()
@@ -39,7 +55,10 @@ class DataName(Enum):
 
 
 class Container():
-    
+    """
+    A container class similar to Matlab's structs.
+    It can be turned into a dictionary using to_dict method.
+    """
     def __init__(self):
         self.name = None
         
@@ -79,7 +98,9 @@ class Container():
 
 
 def seed_everything(seed: int):
-    
+    """
+    Seed method for PyTorch for reproducibility.
+    """
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
@@ -89,6 +110,12 @@ def seed_everything(seed: int):
     torch.backends.cudnn.benchmark = True
 
 def default_config(cfg):
+    """
+    This function changes the configuration parameters 
+    according to the corresponding dataset needs:
+    predefined by dataset: input_size, output_size, task_type, loss_type, maxiter
+    randomly defined: batch_size, lr, n_epochs, hidden_size, sch parameters    
+    """
     
     cfg.seed = getattr(cfg, 'seed', 42)
     
@@ -182,13 +209,33 @@ def default_config(cfg):
         cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
 
     print(f"Maxiter is {cfg.maxiter}/{default_maxiter}")
+
+    cfg = cfg_renamer(cfg) # change the experiment name according to the configuration parameters
     
     return cfg
 
-def ld2dl(ld):
-    return {k: [dic[k] for dic in ld] for k in ld[0]}
+def cfg_renamer(cfg):
+    """
+    If the experiment_name is '', cfg_renamer changes it to format:
+    <dataset_name>[<hidden_sizes>]<activation_type>_<learning:l/r>
+    e.g.: grid[128, 16]relu_L
+    """
+    if cfg.experiment_name == '':
+        
+        exp_name =  str(cfg.dataset_name).split('.')[1].lower() 
+        exp_name += str(cfg.hidden_size) if isinstance(cfg.hidden_size, list) else '[' + str(cfg.hidden_size) + ']'
+        exp_name += str(cfg.activ_type).split('.')[1].lower()
+        exp_name += '_l' if cfg.learn else '_r'
+
+        cfg.experiment_name = exp_name
+
+    return cfg
 
 def cfg_definer(cfgs):
+    """
+    Creates a branch for each tuple of parameters which constructs a tree of configurations.
+    So, it constructs all possible configurations for parameters as p = (a,b,...)
+    """
     
     cfg_list = [copy.deepcopy(cfgs)]
     

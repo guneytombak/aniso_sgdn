@@ -1,18 +1,18 @@
 from src.utils import Container, DataName, ActivType, LossType
-from datetime import datetime
 import torch
 
-'''
-DIGITS_SIZE = 1797
-ENERGY_SIZE = 768 | 8->h->2
-GRID_SIZE = 10000 | 12->h->1
-HOUSE_SIZE = 20640
-IRIS_SIZE = 150
-MNIST_SIZE = 10000
-'''
+"""
+DATASETS 
+DIGITS  : 1797  |
+ENERGY  : 768   | 8->h->2
+GRID    : 10000 | 12->h->1
+HOUSE   : 20640 |
+IRIS    : 150   |
+MNIST   : 10000 |
+"""
 
-cfg = Container()
-cfg.online = True
+cfg = Container() # struct-like class to contain run configurations  
+cfg.online = True # W&B local or global
 
 # Run Parameters
 
@@ -22,31 +22,30 @@ cfg.save_weights = False
 
 # Dataset/Task Parameters
 
-cfg.name = "default"
-#cfg.date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
+cfg.experiment_name = ""
 cfg.dataset_name = DataName.ENERGY
 
 # Network Parameters
 
-cfg.batch_size = 33
+cfg.batch_size = 200
 cfg.lr = 0.005
 
-cfg.learn = (True, False)
-cfg.rand_bound = 1
-cfg.rand_step_size = 0.01
+cfg.learn = (False, True)
+cfg.rand_bound = 5
+cfg.rand_step_size= 0.05
 
 # if commented, gets the maximum: SIZE // batch_size
 #cfg.maxiter = 38 
 
-cfg.n_epochs = 30
+cfg.n_epochs = 200
 cfg.per_epoch_test = 10
 
 cfg.activ_type = (ActivType.RELU, ActivType.SIGMOID)
 #cfg.loss_type = LossType.LNN
 
-#cfg.input_size = 8
-cfg.hidden_size = (128, [128, 16]) 
-#cfg.output_size = 2
+#cfg.input_size = automatically defined by src.utils.default_config 
+cfg.hidden_size = (128, [128, 16], [128, 64, 16]) 
+#cfg.output_size = automatically defined by src.utils.default_config 
 
 # Scheduler Parameters
 

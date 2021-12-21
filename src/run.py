@@ -4,6 +4,7 @@ from torch.optim.lr_scheduler import StepLR
 from tqdm import tqdm
 
 import wandb
+from datetime import datetime
 
 from src.utils import seed_everything, default_config
 from src.data import get_data
@@ -12,9 +13,12 @@ from src.training import train_epoch
 
 def run(cfg):
     
-    # hyperparameters
-    cfg = default_config(cfg)
-    seed_everything(cfg.seed)
+    cfg = default_config(cfg)   # Extracting default hyperparameters specific to the dataset
+    seed_everything(cfg.seed)   # Seeding everything
+
+    run_name = datetime.now().strftime("%Y_%m_%d_%H%M")[2:] + '_' + cfg.experiment_name + '_' + wandb.run.id
+    run_name = cfg.experiment_name + '_' + wandb.run.id
+    wandb.run.name = run_name
     
     if not hasattr(cfg, 'dev'):
         cfg.dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -32,12 +36,13 @@ def run(cfg):
     batch_loader = torch.utils.data.DataLoader(dataset,  cfg.batch_size, shuffle=True)
     single_loader = torch.utils.data.DataLoader(dataset, 1, shuffle=False) #! Important
 
-    model.initialize()
-    model.to(cfg.dev)
-    pbar = tqdm(range(cfg.n_epochs))
-    wandb.watch(model)
+    wandb.watch(model, log="all", log_graph=(True)) # watch the model parameters
+
+    model.initialize() # initialize the model
+    model.to(cfg.dev) # put model into the device (cuda or cpu)
+    pbar = tqdm(range(cfg.n_epochs)) # progress bar
     for epoch in pbar:
         epoch_loss = train_epoch(model, cfg, batch_loader, single_loader, optimizer)
-        pbar.set_description(f"Epoch Loss: {epoch_loss:.5f}", refresh=True)
+        pbar.set_description(f"Epoch Loss: {epoch_loss:.5f}", refresh=True) # update progress bar
         if cfg.sch__use:
             scheduler.step()

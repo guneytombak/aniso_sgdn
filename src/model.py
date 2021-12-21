@@ -12,6 +12,16 @@ import wandb
 from src.utils import ActivType, LossType, TaskType
 
 class Net(nn.Module):
+    """
+    A standard neural network takes the layer numbers as
+    input_size -> hidden_size -> output_size
+    input_size and output_size are integers
+    whereas hidden_size can be integer or a list containing integers
+    activation is the activation function of the network
+
+    If any combination of layer sizes are not given, 
+    They are going to be extracted from Container class cfg
+    """
     def __init__(self, cfg=None, input_size=None, 
                  hidden_size=None, output_size=None,
                  activation=None, task_type=None, verbose=True):
@@ -36,9 +46,14 @@ class Net(nn.Module):
         self.fc_out = nn.Linear(his[-1], ous)
         
         self.act = select_activation(acv)
-        self.out_func = id_func
 
     def forward(self, x):
+        """
+        x_0 = vector(x)
+        x_1 = act(W_1@x_0 + b_1)
+        ...
+        output = W_f@x + b_f
+        """
         x = x.view(x.shape[0], -1)
         x = self.fc_in(x)
         x = self.act(x)
@@ -47,18 +62,24 @@ class Net(nn.Module):
             x = self.fc_hid[i](x)
             x = self.act(x)
         
-        x = self.fc_out(x)
-        
-        output = self.out_func(x, dim=1)
+        output = self.fc_out(x)
+
         return output
     
     def initialize(self):
+        """
+        Initialize the network weights according to Xavier uniform distribution. 
+        """
         nn.init.xavier_uniform_(self.fc_in.weight)
         for i in range(len(self.fc_hid)):
             nn.init.xavier_uniform_(self.fc_hid[i].weight)
         nn.init.xavier_uniform_(self.fc_out.weight)
         
     def get_weights(self):
+        """
+        Get weights as a vector:
+        [W_1,W_2,...,W_f]
+        """
         w = self.fc_in.weight.cpu().view(-1).clone()
         for i in range(len(self.fc_hid)):
             w_i = self.fc_hid[i].weight.cpu().view(-1).clone()
@@ -67,6 +88,10 @@ class Net(nn.Module):
         return torch.cat((w, w_out), 0)
 
     def get_biases(self):
+        """
+        Get weights as a vector:
+        [b_1,b_2,...,b_f]
+        """
         b = self.fc_in.bias.cpu().view(-1).clone()
         for i in range(len(self.fc_hid)):
             b_i = self.fc_hid[i].bias.cpu().view(-1).clone()
@@ -75,6 +100,10 @@ class Net(nn.Module):
         return torch.cat((b, b_out), 0)
 
     def get_wb(self):
+        """
+        Get all parameters (weights and biases) as a vector:
+        [W_1,b_1,W_2,b_2,...,W_f,b_f]
+        """
         w_in = self.fc_in.weight.cpu().view(-1).clone()
         b_in = self.fc_in.bias.cpu().view(-1).clone()
         wb = torch.cat((w_in, b_in), 0)
@@ -89,6 +118,10 @@ class Net(nn.Module):
         return torch.cat((wb, wb_out), 0)
     
     def get_grads(self):
+        """
+        Get gradients of all parameters (weights and biases) as a vector:
+        DelL / Del [W_1,b_1,W_2,b_2,...,W_f,b_f]
+        """
         gw_in = self.fc_in.weight._grad.cpu().view(-1).clone()
         gb_in = self.fc_in.bias._grad.cpu().view(-1).clone()
         g = torch.cat((gw_in, gb_in), 0)
@@ -104,6 +137,9 @@ class Net(nn.Module):
 
 def default_model(input_size, hidden_size, output_size, 
                   activation, cfg):
+    """
+    Get default model parameters defined in Container cfg
+    """
     
     if cfg is not None:
     
@@ -122,6 +158,9 @@ def default_model(input_size, hidden_size, output_size,
     return input_size, hidden_size, output_size, activation
 
 def select_activation(activation):
+    """
+    Select the activation function according to the given ActiveType object.
+    """
     
     if activation == ActivType.GELU:
         return nn.GELU()
@@ -134,6 +173,3 @@ def select_activation(activation):
     else:
         print(f'No activation provided for \"{activation}\", using no activation.')
         return nn.Identity()
-
-def id_func(arg1, *argv, **kwargs):
-    return nn.Identity()(arg1)

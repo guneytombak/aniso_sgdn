@@ -4,36 +4,36 @@ import torch
 from torch import optim
 import wandb
 import copy
-from src.training_utils import select_loss, check_maxiter, random_update_function
-from src.model import id_func
+from src.training_utils import select_loss, check_maxiter, random_update_function, id_func
 from src.utils import LossType
 
 def calculate_integral(h, gh, data_loader):
 
-    integrant_1 = list()
-    integrant_2 = list()
-    sup_trace = 0.0
+    integrant = list()
+    grad_stack = list() # gradients as (t-y)@(grad(h))
+    sup_trace = 0.0 # supremum of the trace
 
     for batch_idx, (data, target) in enumerate(data_loader):
 
         diff_yh2 = torch.sum((target-h[batch_idx])**2)
-        diff_yh = torch.sqrt(diff_yh2)
         M = gh[batch_idx] @ gh[batch_idx].T
         if M.dim() == 0:
             trace = M
+            grad_stack.append((target-h[batch_idx])*gh[batch_idx])
         else:
             trace = torch.trace(M)
+            grad_stack.append((target-h[batch_idx])@gh[batch_idx])
         if sup_trace < trace:
             sup_trace = trace
-        trace_sq = torch.sqrt(trace)
 
-        integrant_1.append(diff_yh2*trace)
-        integrant_2.append(diff_yh*trace_sq)
+        integrant.append(diff_yh2*trace) 
 
-    integral_1 = torch.mean(torch.stack(integrant_1))
-    integral_2 = torch.mean(torch.stack(integrant_2))**2
+    integral = torch.mean(torch.stack(integrant))
+    if M.dim() > 0:
+        integral = integral / M.size(0)
+    true_integral = torch.mean(torch.sum(torch.stack(grad_stack)**2,2))
 
-    return integral_1, integral_2, sup_trace
+    return integral, true_integral, sup_trace, grad_stack
     
 
 def get_n_losses(data_loader, model_actual, loss_func):
@@ -51,13 +51,13 @@ def get_n_losses(data_loader, model_actual, loss_func):
         else:
             return len(loss.flatten())
 
-def eval_grad(data_loader, model_actual, optimizer_actual, loss_func):
+def eval_grad(data_loader, model_actual, lr, loss_func):
 
     n_losses = get_n_losses(data_loader, model_actual, loss_func)
 
-    device = torch.device("cpu")
-    model = copy.deepcopy(model_actual).to(device)
-    optimizer = copy.deepcopy(optimizer_actual) 
+    device = torch.device("cpu") # No use of batch, therefore CPU
+    model = copy.deepcopy(model_actual).to(device) # Copying model to not interfering the main process
+    optimizer = optimizer = optim.SGD(model.parameters(), lr) # Setting an SGD optimizer from scratch
 
     losses = list()
     grads = list()
@@ -70,23 +70,25 @@ def eval_grad(data_loader, model_actual, optimizer_actual, loss_func):
 
         for batch_idx, (data, target) in enumerate(data_loader):
             data, target = data.to(device), target.to(device)
-            optimizer.zero_grad() # REVIEW
+            optimizer.zero_grad() # setting gradients to zero
+            model.eval() # evaluation mode for the model
+            # Note: Since it is a deep copy, it does not interfere with the main process 
             output = model(data)
             loss = loss_func(output, target)
 
             if n_losses > 1:
                 loss = loss.flatten()
 
-            if n_losses == 1:
+            if n_losses == 1: # If there is one output of loss function
                 loss.backward()
                 losses.append(loss)
                 grads.append(model.get_grads())
-            else:
+            else: # If there is more than one output of loss function
                 loss[k].backward()
                 losses_k.append(loss[k])
                 grads_k.append(model.get_grads())
 
-        if n_losses > 1:
+        if n_losses > 1: # stack the different losses
             grads.append(torch.stack(grads_k, dim=0))
             losses.append(torch.stack(losses_k, dim=0))
     
@@ -103,11 +105,11 @@ def eval_grad(data_loader, model_actual, optimizer_actual, loss_func):
 
 def train_epoch(model, cfg, batch_loader, single_loader, optimizer):
     
-    loss_func = select_loss(cfg.loss_type)
-    maxiter = check_maxiter(cfg.maxiter, batch_loader)
+    loss_func = select_loss(cfg.loss_type) # Get the loss type
+    # Check whether the number of iterations is good to use 
+    maxiter = check_maxiter(cfg.maxiter, batch_loader)  
     
-    model.train()
-
+    model.train() # enabling the training mode
     per_iter_idx_run = int(np.ceil(maxiter/cfg.per_epoch_test))
 
     loss_list = list()
@@ -122,7 +124,7 @@ def train_epoch(model, cfg, batch_loader, single_loader, optimizer):
             # Gradient Computation
             
             # grad_loss_stack (n_samples, n_params), loss_stack (n_samples)
-            grad_loss_stack, loss_stack = eval_grad(single_loader, model, optimizer, loss_func)
+            grad_loss_stack, loss_stack = eval_grad(single_loader, model, cfg.lr, loss_func)
             # expected_grad_loss (n_params)
             exp_grad_loss = torch.mean(grad_loss_stack, 0)
             # magnitude_square_grad_loss (n_samples)
@@ -138,32 +140,35 @@ def train_epoch(model, cfg, batch_loader, single_loader, optimizer):
             # lower_bound ()
             lower_bound = torch.mean(mag_sq_dev_from_exp_grad_loss)
             
-            grad_output_stack, output_stack = eval_grad(single_loader, model, optimizer, id_func)
+            grad_output_stack, output_stack = eval_grad(single_loader, model, cfg.lr, id_func)
 
             # REVIEW
             grad_output_stack_flattened = grad_output_stack.reshape(grad_output_stack.size(0), -1) 
             max_magnitude_square_grad_output = torch.max(torch.sum(grad_output_stack_flattened**2, 1))
 
             if cfg.loss_type == LossType.MSE:
-                integral_1, integral_2, sup_trace = calculate_integral(output_stack, grad_output_stack, single_loader)
+                integral, true_integral, sup_trace, int_grad_stack = calculate_integral(output_stack, grad_output_stack, single_loader)
                 assert torch.isclose(sup_trace, max_magnitude_square_grad_output)
                 upper_bound = 2*max_magnitude_square_grad_output*exp_loss
             elif cfg.loss_type == LossType.NLL:
                 upper_bound = 2*max_magnitude_square_grad_output*min(1.0, exp_loss)
-                integral_1, integral_2 = upper_bound, upper_bound
+                integral, true_integral = upper_bound, upper_bound
 
-            #theta = wandb.Table(data=[[a] for a in model.get_wb()], columns=["wnb"])
+            '''
+            for k in range(len(int_grad_stack)):
+                wandb.log({ 'grad'  : grad_loss_stack[k],
+                            'int'   : int_grad_stack[k]})
+            '''
 
             wandb.log({ 'Lower'  : lower_bound,
                         'EoSq'   : exp_mag_sq_grad_loss,
                         'Loss'   : exp_loss,
                         'Dh2'    : max_magnitude_square_grad_output,
                         'Upper'  : upper_bound,
-                        'Int1'   : integral_1,
-                        'Int2'   : integral_2,
-                        #'Theta'  : wandb.plot.histogram(theta, "wnb", title="WB Histogram")
+                        'Int'    : true_integral,
+                        'Int2'   : integral,
                         })
-
+            
         # Step
         
         data, target = data.to(cfg.dev), target.to(cfg.dev)
@@ -179,7 +184,7 @@ def train_epoch(model, cfg, batch_loader, single_loader, optimizer):
         else:
             with torch.no_grad():
                 for p in model.parameters():
-                    new_val = random_update_function(p, 0, loss_batch, cfg)
+                    new_val = random_update_function(p, cfg)
                     p.copy_(new_val)
 
         # Data Save
@@ -188,27 +193,3 @@ def train_epoch(model, cfg, batch_loader, single_loader, optimizer):
     
     return epoch_loss
 
-'''
-
-        grad_h2 = batch_max_magnitude(grad_output_global)
-        upper_bound = upper_bound_func(grad_h2, loss)
-        
-        g_sq = np.float64(expected_grad_loss_global)
-        gmDL_sq = np.float64(torch.sum(torch.square(expected_grad_loss_global - grad_loss_batch)))
-        loss_batch = np.float64(loss)
-        loss_list.append(loss)
-        # iter_no = batch_idx + epoch*maxiter
-
-        #REVIEW Be sure about mean or sum
-
-        r_term_trace = torch.zeros(grad_output_global.size(2))
-
-        for i in range(grad_output_global.size(0)):
-            r_term_trace += torch.trace(grad_output_global[i].T * grad_output_global[i])
-        #r_term = torch.einsum('bvd, bdw -> bvw', torch.transpose(grad_output_global,1,2), grad_output_global).to(output.device)
-        integral = torch.mean(loss_global*r_term_trace)
-        integral = np.float64(integral)
-
-
-
-'''

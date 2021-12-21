@@ -4,16 +4,23 @@ import torch
 from torch import nn
 from src.utils import ActivType, LossType
 
+def id_func(arg1, *argv, **kwargs):
+    """
+    Dummy function: takes the first input and returns it.
+    """
+    return nn.Identity()(arg1)
+
 def select_loss(loss_type):
     
     if loss_type == LossType.NLL:
         return nn.CrossEntropyLoss()
     elif loss_type == LossType.MSE:
         mse = nn.MSELoss(reduction='mean')
+        # it should sum over all outputs, 
+        # hence the mean should be multiplied by number of outputs 
         return lambda i, o : i.size(1)*mse(i, o)/2
     else:
         sys.exit(f'No loss function provided for \"{loss_type}\"')
-    
 
 def check_maxiter(maxiter, data_loader):
     
@@ -24,21 +31,28 @@ def check_maxiter(maxiter, data_loader):
 
     return maxiter
 
-def random_update_function(p, p_grad, loss, cfg):
+def random_update_function(p, cfg):
+    """
+    Randomly updates by adding with a Gaussian random variable with 0 mean and cfg.rand_step_size
+    The parameters are forced to be to be in the interval [-cfg.rand_bound, +cfg.rand_bound]
+    """
     
-    dev = p.get_device()
-    dev = dev if dev >= 0 else torch.device("cpu")
+    dev = p.get_device() # get the parameter device no
+    dev = dev if dev >= 0 else torch.device("cpu") # if device no is less than zero, it is cpu
         
-    dp = cfg.rand_step_size*torch.randn(p.shape).to(dev)
+    dp = cfg.rand_step_size*torch.randn(p.shape).to(dev) # define random step vector
+    p_new = p + dp # update the parameters with random step
 
-    p_new = p + dp
-
+    # force parameters to be in the interval [-rand_bound, +rand_bound]
     p_new[p_new > cfg.rand_bound] = cfg.rand_bound
     p_new[p_new < -cfg.rand_bound] = -cfg.rand_bound
     
     return p_new
 
 def trace(input, axis1=0, axis2=1):
+    """
+    Trace method for specific axes.
+    """
     assert input.shape[axis1] == input.shape[axis2], input.shape
 
     shape = list(input.shape)
