@@ -16,7 +16,6 @@ def run(cfg):
     cfg = default_config(cfg)   # Extracting default hyperparameters specific to the dataset
     seed_everything(cfg.seed)   # Seeding everything
 
-    run_name = datetime.now().strftime("%Y_%m_%d_%H%M")[2:] + '_' + cfg.experiment_name + '_' + wandb.run.id
     run_name = cfg.experiment_name + '_' + wandb.run.id
     wandb.run.name = run_name
     
