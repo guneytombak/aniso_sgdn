@@ -12,7 +12,7 @@ MNIST   : 10000 |
 """
 
 cfg = Container() # struct-like class to contain run configurations  
-cfg.online = True # W&B local or global
+cfg.online = False # W&B local or global
 
 # Run Parameters
 
@@ -25,14 +25,14 @@ cfg.save_weights = False
 cfg.experiment_name = "" 
 # if cfg.experiment_name="", automatically defined as 
 # <dataset_name>[<hidden_sizes>]<activation_type>_<learning:l/r>
-cfg.dataset_name = DataName.ENERGY
+#cfg.dataset_name = DataName.ENERGY
 
 # Network Parameters
 
-cfg.batch_size = 33
+cfg.batch_size = 100
 cfg.lr = 0.005
 
-cfg.learn = (False, True)
+cfg.learn = (True, False)
 cfg.rand_bound = 1
 cfg.rand_step_size= 0.1
 
@@ -55,4 +55,25 @@ cfg.sch__use = False
 if cfg.sch__use:
     cfg.sch__gamma = 0.9
     cfg.sch__step_size = 20
+
+# if given as a dictionary in the format below
+# dataset is generated randomly 
+
+dataset1000 = {
+    'input_size'    : 20,
+    'output_size'   : 5,
+    'sample_size'   : 1000,
+    'model_par_std' : 0.1,
+    'noise_std'     : 0.02
+    }
+
+dataset100 = {
+    'input_size'    : 20,
+    'output_size'   : 5,
+    'sample_size'   : 100,
+    'model_par_std' : 0.1,
+    'noise_std'     : 0.02
+    }
+
+cfg.dataset_name = dataset1000
 
