@@ -9,7 +9,9 @@ def main(cfg):
     cfg_list = cfg_definer(cfg) # create configuration tree list
     for ind, cfg in enumerate(cfg_list):
 
-        if hasattr(cfg, 'start_from'):
+        # if cfg.start_from set, it starts from the specified run
+        # especially useful for failed experiments
+        if hasattr(cfg, 'start_from'): 
             if (ind + 1) < cfg.start_from:
                 continue
         

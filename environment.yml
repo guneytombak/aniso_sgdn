@@ -16,3 +16,4 @@ dependencies:
   - tqdm
   - pip:
     - pickle5
+    - wandb
