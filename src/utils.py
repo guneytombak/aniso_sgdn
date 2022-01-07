@@ -8,7 +8,7 @@ import copy
 DIGITS_SIZE = 1797
 ENERGY_SIZE = 768
 GRID_SIZE = 10000
-HOUSE_SIZE = 20640
+HOUSE_SIZE = 19794
 IRIS_SIZE = 150
 MNIST_SIZE = 10000
 
@@ -235,18 +235,17 @@ def cfg_renamer(cfg):
     <dataset_name>[<hidden_sizes>]<activation_type>_<learning:l/r>
     e.g.: grid[128, 16]relu_L
     """
-    if cfg.experiment_name == '':
 
-        if isinstance(cfg.dataset_name, DataName): 
-            exp_name = str(cfg.dataset_name).split('.')[1].lower()
-        elif isinstance(cfg.dataset_name, dict):
-            exp_name = 'gen' + str(cfg.dataset_name['sample_size'])
-    
-        exp_name += str(cfg.hidden_size) if isinstance(cfg.hidden_size, list) else '[' + str(cfg.hidden_size) + ']'
-        exp_name += str(cfg.activ_type).split('.')[1].lower()
-        exp_name += '_l' if cfg.learn else '_r'
+    if isinstance(cfg.dataset_name, DataName): 
+        exp_name = str(cfg.dataset_name).split('.')[1].lower()
+    elif isinstance(cfg.dataset_name, dict):
+        exp_name = 'gen' + str(cfg.dataset_name['sample_size'])
 
-        cfg.experiment_name = exp_name
+    exp_name += str(cfg.hidden_size) if isinstance(cfg.hidden_size, list) else '[' + str(cfg.hidden_size) + ']'
+    exp_name += str(cfg.activ_type).split('.')[1].lower()
+    exp_name += '_l' if cfg.learn else '_r'
+
+    cfg.experiment_name += '_' + exp_name
 
     return cfg
 

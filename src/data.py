@@ -142,6 +142,10 @@ def get_house():
     Y = scal.fit_transform(Y)
     X = np.array(X, dtype=np.float32)
     Y = np.array(Y, dtype=np.float32)
+    # deleting all with absolute input value larger than 3
+    extrema_bool = np.any(np.abs(X) > 3, 1)
+    X = X[np.logical_not(extrema_bool)]
+    Y = Y[np.logical_not(extrema_bool)]
     dataset = Dataset(X,Y)
 
     return dataset
