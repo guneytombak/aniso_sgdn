@@ -8,6 +8,11 @@ def main(cfg):
 
     cfg_list = cfg_definer(cfg) # create configuration tree list
     for ind, cfg in enumerate(cfg_list):
+
+        if hasattr(cfg, 'start_from'):
+            if (ind + 1) < cfg.start_from:
+                continue
+        
         print(f"RUNNING CONFIG NO {ind+1}/{len(cfg_list)}")
 
         # Initialize the Weights and Biases to see results more easily

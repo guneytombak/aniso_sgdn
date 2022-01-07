@@ -67,7 +67,5 @@ dataset1000 = {
     'noise_std'     : 0.02  # standard deviation of the noise induced to the input dataset
     }
 
-cfg.dataset_name = DataName.GRID
-
-cfg.start_from = 5
+cfg.dataset_name = dataset1000
 

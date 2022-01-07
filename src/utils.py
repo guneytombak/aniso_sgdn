@@ -8,11 +8,12 @@ import copy
 DIGITS_SIZE = 1797
 ENERGY_SIZE = 768
 GRID_SIZE = 10000
-HOUSE_SIZE = 20640
+HOUSE_SIZE = 19794
 IRIS_SIZE = 150
 MNIST_SIZE = 10000
 
 from enum import Enum, auto
+import math
 
 class TaskType(Enum):
     """
@@ -143,7 +144,6 @@ def default_config(cfg):
         cfg.input_size = 64
         cfg.output_size = 10
         cfg.hidden_size = getattr(cfg, 'hidden_size', 50)
-        cfg.loss_type = LossType.NLL
         
         default_maxiter = DIGITS_SIZE // cfg.batch_size
         cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
@@ -155,7 +155,6 @@ def default_config(cfg):
         cfg.input_size = 8
         cfg.output_size = 2
         cfg.hidden_size = getattr(cfg, 'hidden_size', 50)
-        cfg.loss_type = LossType.MSE
         
         default_maxiter = ENERGY_SIZE // cfg.batch_size
         cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
@@ -167,7 +166,6 @@ def default_config(cfg):
         cfg.input_size = 12
         cfg.output_size = 1
         cfg.hidden_size = getattr(cfg, 'hidden_size', 50)
-        cfg.loss_type = LossType.MSE
         
         default_maxiter = GRID_SIZE // cfg.batch_size
         cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
@@ -179,7 +177,6 @@ def default_config(cfg):
         cfg.input_size = 8
         cfg.output_size = 1
         cfg.hidden_size = getattr(cfg, 'hidden_size', 50)
-        cfg.loss_type = LossType.MSE
         
         default_maxiter = HOUSE_SIZE // cfg.batch_size
         cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
@@ -191,7 +188,7 @@ def default_config(cfg):
         cfg.input_size = 4
         cfg.output_size = 3
         cfg.hidden_size = getattr(cfg, 'hidden_size', 15)
-        cfg.loss_type = LossType.NLL
+
         
         default_maxiter = IRIS_SIZE // cfg.batch_size
         cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
@@ -203,11 +200,29 @@ def default_config(cfg):
         cfg.input_size = 28**2
         cfg.output_size = 10
         cfg.hidden_size = getattr(cfg, 'hidden_size', 256)
-        cfg.loss_type = LossType.NLL
         
         default_maxiter = MNIST_SIZE // cfg.batch_size
         cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
 
+    # Generated Dataset
+    elif isinstance(cfg.dataset_name, dict):
+
+        if 'task_type' in cfg.dataset_name:
+            cfg.task_type = cfg.dataset_name['task_type']
+        else:
+            cfg.task_type = TaskType.REGRESS
+
+        cfg.input_size = cfg.dataset_name['input_size']
+        cfg.output_size = cfg.dataset_name['output_size']
+
+        default_maxiter = cfg.dataset_name['sample_size'] // cfg.batch_size
+        cfg.maxiter = getattr(cfg, 'maxiter', default_maxiter)
+
+    if cfg.task_type == TaskType.CLASSIFY:
+        cfg.loss_type = LossType.NLL
+    elif cfg.task_type == TaskType.REGRESS:
+        cfg.loss_type = LossType.MSE
+        
     print(f"Maxiter is {cfg.maxiter}/{default_maxiter}")
 
     cfg = cfg_renamer(cfg) # change the experiment name according to the configuration parameters
@@ -220,14 +235,17 @@ def cfg_renamer(cfg):
     <dataset_name>[<hidden_sizes>]<activation_type>_<learning:l/r>
     e.g.: grid[128, 16]relu_L
     """
-    if cfg.experiment_name == '':
-        
-        exp_name =  str(cfg.dataset_name).split('.')[1].lower() 
-        exp_name += str(cfg.hidden_size) if isinstance(cfg.hidden_size, list) else '[' + str(cfg.hidden_size) + ']'
-        exp_name += str(cfg.activ_type).split('.')[1].lower()
-        exp_name += '_l' if cfg.learn else '_r'
 
-        cfg.experiment_name = exp_name
+    if isinstance(cfg.dataset_name, DataName): 
+        exp_name = str(cfg.dataset_name).split('.')[1].lower()
+    elif isinstance(cfg.dataset_name, dict):
+        exp_name = 'gen' + str(cfg.dataset_name['sample_size'])
+
+    exp_name += str(cfg.hidden_size) if isinstance(cfg.hidden_size, list) else '[' + str(cfg.hidden_size) + ']'
+    exp_name += str(cfg.activ_type).split('.')[1].lower()
+    exp_name += '_l' if cfg.learn else '_r'
+
+    cfg.experiment_name += '_' + exp_name
 
     return cfg
 

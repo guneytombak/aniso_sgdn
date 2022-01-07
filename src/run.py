@@ -12,9 +12,9 @@ from src.model import Net
 from src.training import train_epoch
 
 def run(cfg):
-    
+
+    seed_everything(cfg.seed)   # Seeding everything for reproducibility
     cfg = default_config(cfg)   # Extracting default hyperparameters specific to the dataset
-    seed_everything(cfg.seed)   # Seeding everything
 
     run_name = cfg.experiment_name + '_' + wandb.run.id
     wandb.run.name = run_name
@@ -31,7 +31,7 @@ def run(cfg):
         scheduler = StepLR(optimizer, step_size=cfg.sch__step_size, gamma=cfg.sch__gamma)
 
     # data
-    dataset = get_data(cfg.dataset_name)
+    dataset = get_data(cfg)
     batch_loader = torch.utils.data.DataLoader(dataset,  cfg.batch_size, shuffle=True)
     single_loader = torch.utils.data.DataLoader(dataset, 1, shuffle=False) #! Important
 

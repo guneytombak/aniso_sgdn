@@ -31,21 +31,21 @@ def check_maxiter(maxiter, data_loader):
 
     return maxiter
 
-def random_update_function(p, cfg):
+def random_update_function(p, rand_step_size, rand_bound=None):
     """
-    Randomly updates by adding with a Gaussian random variable with 0 mean and cfg.rand_step_size
-    The parameters are forced to be to be in the interval [-cfg.rand_bound, +cfg.rand_bound]
+    Randomly updates by adding with a Gaussian random variable with 0 mean and rand_step_size
+    The parameters are forced to be to be in the interval [-rand_bound, +rand_bound]
     """
     
     dev = p.get_device() # get the parameter device no
     dev = dev if dev >= 0 else torch.device("cpu") # if device no is less than zero, it is cpu
         
-    dp = cfg.rand_step_size*torch.randn(p.shape).to(dev) # define random step vector
+    dp = rand_step_size*torch.randn(p.shape).to(dev) # define random step vector
     p_new = p + dp # update the parameters with random step
 
-    # force parameters to be in the interval [-rand_bound, +rand_bound]
-    p_new[p_new > cfg.rand_bound] = cfg.rand_bound
-    p_new[p_new < -cfg.rand_bound] = -cfg.rand_bound
+    if rand_bound is not None:# force parameters to be in the interval [-rand_bound, +rand_bound]
+        p_new[p_new > rand_bound] = rand_bound
+        p_new[p_new < -rand_bound] = -rand_bound
     
     return p_new
 

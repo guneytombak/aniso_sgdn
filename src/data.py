@@ -11,8 +11,10 @@ from random import shuffle
 from sklearn.datasets import load_iris, load_digits, fetch_california_housing
 from torchvision import datasets, transforms
 from sklearn.preprocessing import StandardScaler
+from torch.quasirandom import SobolEngine
 
 from src.utils import DataName
+from src.model import Net
 
 URL_ENERGY = 'https://archive.ics.uci.edu/ml/machine-learning-databases/00242/ENB2012_data.xlsx'
 URL_GRID = 'https://archive.ics.uci.edu/ml/machine-learning-databases/00471/Data_for_UCI_named.csv'
@@ -49,20 +51,22 @@ class Dataset(torch.utils.data.Dataset):
 
         return X, y
 
-def get_data(dataset_name):
+def get_data(cfg):
 
-    if dataset_name == DataName.DIGITS:
+    if cfg.dataset_name == DataName.DIGITS:
         return get_digits()
-    elif dataset_name == DataName.ENERGY:
+    elif cfg.dataset_name == DataName.ENERGY:
         return get_energy()
-    elif dataset_name == DataName.GRID:
+    elif cfg.dataset_name == DataName.GRID:
         return get_grid()
-    elif dataset_name == DataName.HOUSE:
+    elif cfg.dataset_name == DataName.HOUSE:
         return get_house()
-    elif dataset_name == DataName.IRIS:
+    elif cfg.dataset_name == DataName.IRIS:
         return get_iris()
-    elif dataset_name == DataName.MNIST:
+    elif cfg.dataset_name == DataName.MNIST:
         return get_mnist()
+    elif isinstance(cfg.dataset_name, dict):
+        return get_generated(cfg)
 
 # Dataset loader retriever functions
 
@@ -138,6 +142,10 @@ def get_house():
     Y = scal.fit_transform(Y)
     X = np.array(X, dtype=np.float32)
     Y = np.array(Y, dtype=np.float32)
+    # deleting all with absolute input value larger than 3
+    extrema_bool = np.any(np.abs(X) > 3, 1)
+    X = X[np.logical_not(extrema_bool)]
+    Y = Y[np.logical_not(extrema_bool)]
     dataset = Dataset(X,Y)
 
     return dataset
@@ -161,3 +169,55 @@ def get_mnist():
                                 download=True, transform=transform)
     return dataset
 
+def get_generated(cfg):
+
+    dataset_generator = DatasetGenerator(cfg)
+    X, Y = dataset_generator.dataset
+    
+    dataset = Dataset(X, Y)
+    return dataset
+    
+    
+#%% 
+
+class DatasetGenerator():
+    
+    def __init__(self, cfg, verbose=True):
+        self.verbose = verbose
+        self.model = Net(cfg=cfg, verbose=False)
+        self.settings = cfg.dataset_name
+        self.best_params = self._get_best_params() 
+
+    def _get_best_params(self):
+        
+        rand_size = self.settings['model_par_std']
+        with torch.no_grad():
+            for p in self.model.parameters():
+                dev = p.get_device() # get the parameter device no
+                dev = dev if dev >= 0 else torch.device("cpu") # if device no is less than zero, it is cpu
+            
+                p_new = rand_size*torch.randn(p.shape).to(dev) # define random step vector
+                p.copy_(p_new)
+
+        return self.model.get_wb()
+
+    @property
+    def dataset(self):
+        sample_size = self.settings['sample_size']
+        soboleng = SobolEngine(dimension=self.settings['input_size'])
+        X = 2*soboleng.draw(sample_size) - 1
+        Y = self.model(X)
+
+        X = X.clone().detach()
+        Y = Y.clone().detach()
+
+        # Addition of Gaussian Noise
+        if 'noise_std' in self.settings:
+            X = torch.normal(mean=X, std=self.settings['noise_std'])
+
+        if self.verbose:
+            print(f"Random dataset of size {sample_size} is created.")
+
+        return X, Y
+
+        

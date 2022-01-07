@@ -184,7 +184,7 @@ def train_epoch(model, cfg, batch_loader, single_loader, optimizer):
         else:
             with torch.no_grad():
                 for p in model.parameters():
-                    new_val = random_update_function(p, cfg)
+                    new_val = random_update_function(p, cfg.rand_step_size, cfg.rand_bound)
                     p.copy_(new_val)
 
         # Data Save
