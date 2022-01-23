@@ -231,9 +231,9 @@ def default_config(cfg):
 
 def cfg_renamer(cfg):
     """
-    If the experiment_name is '', cfg_renamer changes it to format:
-    <dataset_name>[<hidden_sizes>]<activation_type>_<learning:l/r>
-    e.g.: grid[128, 16]relu_L
+    cfg_renamer adds informative string after the original experiment name
+    <prefix>_<dataset_name>[<hidden_sizes>]<activation_type>_<learning:l/r>
+    e.g.: final_grid[128, 16]relu_L
     """
 
     if isinstance(cfg.dataset_name, DataName): 

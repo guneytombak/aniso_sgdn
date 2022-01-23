@@ -17,13 +17,13 @@ cfg.online = True # W&B local or global
 # Run Parameters
 
 cfg.seed = (42, 15, 26)
-cfg.dev = torch.device("cuda")
+cfg.dev = torch.device("cpu")
 cfg.save_weights = False
 
 # Dataset/Task Parameters
 
 cfg.experiment_name = "final" 
-# if cfg.experiment_name="", automatically defined as 
+# the additional strings will be added to the experiment name:
 # <dataset_name>[<hidden_sizes>]<activation_type>_<learning:l/r>
 #cfg.dataset_name = DataName.ENERGY
 
@@ -59,7 +59,7 @@ if cfg.sch__use:
 # if given as a dictionary in the format below
 # dataset is generated randomly 
 
-dataset1000 = {
+dataset1 = {
     'input_size'    : 10,   # input dimension
     'output_size'   : 1,    # output dimension
     'sample_size'   : 1000, # number of samples
@@ -67,7 +67,14 @@ dataset1000 = {
     'noise_std'     : 0.02  # standard deviation of the noise induced to the input dataset
     }
 
-cfg.dataset_name = DataName.GRID
+dataset2 = {
+    'input_size'    : 20,   # input dimension
+    'output_size'   : 2,    # output dimension
+    'sample_size'   : 2000, # number of samples
+    'model_par_std' : 0.2,  # standard deviation of the optimum model parameters
+    'noise_std'     : 0.05  # standard deviation of the noise induced to the input dataset
+    }
 
-cfg.start_from = 5
+cfg.dataset_name = DataName.GRID
+cfg.start_from = 25
 
